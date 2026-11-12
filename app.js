@@ -6,10 +6,18 @@ const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxba-wFIFezd3XonNNlR
 
 const MAX_BYTES = 20 * 1024 * 1024; // 20MB / file
 const PER_COL = 8;                  // số bài hiện sẵn trong mỗi pack, còn lại bấm "Xem thêm"
-const COLORS = ['#ffd6cc', '#c8f0e2', '#ffe9a8', '#d9e4ff', '#f3d6ff', '#ffd1e1', '#d7f5c4', '#e8e0d4'];
+// Bảng màu dùng chung cho pack và bài đăng: [mã màu, tên]
+const PALETTE = [
+  ['#ffd6cc', 'Đào'], ['#ffab91', 'Cam đào'], ['#ff8a80', 'Đỏ san hô'], ['#ffcc80', 'Cam'],
+  ['#ffe9a8', 'Vàng kem'], ['#fff176', 'Vàng chanh'], ['#d7f5c4', 'Xanh non'], ['#a5d6a7', 'Xanh lá'],
+  ['#c8f0e2', 'Mint'], ['#80deea', 'Xanh ngọc'], ['#b3e5fc', 'Xanh trời'], ['#90caf9', 'Xanh dương'],
+  ['#d9e4ff', 'Lam nhạt'], ['#b39ddb', 'Tím oải hương'], ['#f3d6ff', 'Tím nhạt'], ['#ce93d8', 'Tím'],
+  ['#ffd1e1', 'Hồng phấn'], ['#f48fb1', 'Hồng đậm'], ['#e8e0d4', 'Be'], ['#cfd8dc', 'Xám xanh'],
+];
+const COLORS = PALETTE.map(c => c[0]);
 const EMOJIS = ['📦', '📚', '🎧', '🗣️', '✏️', '📝', '🧠', '🌟', '🎯', '🧩', '📖', '🏆', '🍑', '🌱', '🎒', '🗂️'];
 const TYPES = [['', 'Tất cả'], ['doc', '📄 Tài liệu'], ['image', '🖼️ Ảnh'], ['media', '🎧 Audio/Video'], ['link', '🔗 Link'], ['note', '📝 Ghi chú']];
-const PEOPLE = [['', 'Mọi người'], ['Cô', '👩‍🏫 Cô'], ['Trợ lý', '🧑‍💻 Trợ lý']];
+const PEOPLE = [['', 'Mọi người'], ['Cô', '👩‍🏫 Cô'], ['Linh', '🧑‍💻 Linh']];
 
 /* ───── lưu trên trình duyệt (mã truy cập, người dùng, bản sao dữ liệu) ───── */
 const store = {
@@ -19,7 +27,7 @@ const store = {
 };
 
 const S = {
-  code: store.get('code', ''), who: store.get('who', ''),
+  who: store.get('who', '') === 'Trợ lý' ? 'Linh' : store.get('who', ''),
   packs: [], items: [], q: '', type: '', by: '',
   full: store.get('full', false), // true = mở hết các bài
   open: new Set(), shut: new Set(), more: new Set(),
@@ -48,12 +56,15 @@ async function api(action, body) {
       r = await fetch(SCRIPT_URL, {
         method: 'POST',
         headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-        body: JSON.stringify(Object.assign({}, body, { action: action, code: S.code, who: S.who })),
+        body: JSON.stringify(Object.assign({}, body, { action: action, who: S.who })),
       });
     } catch (_) { throw new Error('Không kết nối được máy chủ. Kiểm tra mạng rồi thử lại.'); }
     let j;
     try { j = await r.json(); } catch (_) { throw new Error('Máy chủ trả lời lạ (đã Deploy với quyền "Anyone" chưa?)'); }
-    if (!j.ok) { const er = new Error(j.error || 'Lỗi máy chủ'); er.auth = j.auth === false; throw er; }
+    if (!j.ok) {
+      const old = j.auth === false; // máy chủ bản cũ vẫn đòi mã truy cập
+      throw new Error(old ? 'Máy chủ đang chạy bản cũ (còn đòi mã). Cô dán Library.gs mới vào Apps Script rồi Deploy → New version.' : (j.error || 'Lỗi máy chủ'));
+    }
     if (j.data) setData(j.data);
     return j;
   } finally { busy(-1); }
@@ -68,21 +79,14 @@ function setData(d) {
 }
 
 function refresh() {
-  return api('list').catch(er => er.auth ? authFail() : toast(er.message, true));
+  return api('list').catch(er => toast(er.message, true));
 }
 
-/* ───────────────────────── Đăng nhập ───────────────────────── */
-let pickWho = '';
-function markWho(w) {
-  pickWho = w || '';
-  $$('#whoPick [data-who]').forEach(b => b.classList.toggle('on', b.dataset.who === pickWho));
-}
-function showLogin(msg) {
+/* ───────────────────────── Chọn người dùng (không cần mã) ───────────────────────── */
+function showLogin() {
   $('#app').hidden = true;
   $('#login').hidden = false;
-  $('#loginErr').textContent = msg || '';
-  markWho(S.who);
-  setTimeout(() => $('#codeIn').focus(), 50);
+  $$('#whoPick [data-who]').forEach(b => b.classList.toggle('on', b.dataset.who === S.who));
 }
 function showApp() {
   $('#login').hidden = true;
@@ -90,30 +94,17 @@ function showApp() {
   $('#whoLabel').textContent = (S.who === 'Cô' ? '👩‍🏫 ' : '🧑‍💻 ') + S.who;
   render();
 }
-function logout(msg) {
-  store.del('code'); store.del('cache');
-  S.code = ''; S.packs = []; S.items = [];
-  showLogin(msg);
-}
-function authFail() { logout('Mã truy cập không còn đúng (có thể cô đã đổi mã). Vui lòng nhập lại.'); }
 
-$('#whoPick').addEventListener('click', e => { const b = e.target.closest('[data-who]'); if (b) markWho(b.dataset.who); });
-$('#loginForm').addEventListener('submit', async e => {
-  e.preventDefault();
-  const code = $('#codeIn').value.trim();
-  if (!pickWho) { $('#loginErr').textContent = 'Chọn "Cô" hoặc "Trợ lý" nhé.'; return; }
-  S.code = code; S.who = pickWho;
-  $('#loginGo').disabled = true; $('#loginErr').textContent = '';
-  try {
-    await api('list');
-    store.set('code', code); store.set('who', pickWho);
-    showApp();
-  } catch (er) {
-    S.code = '';
-    $('#loginErr').textContent = er.message;
-  } finally { $('#loginGo').disabled = false; }
+$('#whoPick').addEventListener('click', e => {
+  const b = e.target.closest('[data-who]');
+  if (!b) return;
+  S.who = b.dataset.who;
+  store.set('who', S.who);
+  showApp();
+  refresh();
 });
-$('#logoutBtn').addEventListener('click', () => { if (confirm('Thoát khỏi thư viện trên máy này?')) logout(); });
+$('#loginForm').addEventListener('submit', e => e.preventDefault());
+$('#logoutBtn').addEventListener('click', showLogin);
 $('#refreshBtn').addEventListener('click', () => refresh().then(() => toast('Đã tải lại ✨')));
 
 /* ───────────────────────── Hiển thị ───────────────────────── */
@@ -212,7 +203,8 @@ function cardHTML(it, tokens) {
   const ttl = href
     ? '<a class="ttl" href="' + esc(href) + '" target="_blank" rel="noopener" title="' + esc(title) + '">' + (it.pinned ? '📌 ' : '') + esc(title) + '</a>'
     : '<span class="ttl" title="' + esc(title) + '">' + (it.pinned ? '📌 ' : '') + esc(title) + '</span>';
-  return '<article class="card' + (isOpen(it, tokens) ? ' open' : '') + (it.pinned ? ' pinned' : '') + '" data-id="' + esc(it.id) + '">' +
+  const color = /^#[0-9a-f]{6}$/i.test(it.color || '') ? ' style="--pc:' + it.color + '"' : '';
+  return '<article class="card' + (isOpen(it, tokens) ? ' open' : '') + (it.pinned ? ' pinned' : '') + (color ? ' colored' : '') + '" data-id="' + esc(it.id) + '"' + color + '>' +
     '<div class="row" data-act="toggle" title="Bấm để xem thêm / thu gọn">' +
       '<span class="ico">' + k.icon + '</span>' + ttl +
       '<span class="sub">' + esc(it.by) + ' · ' + fmtShort(it.createdAt) + '</span>' +
@@ -362,7 +354,7 @@ $('#board').addEventListener('drop', e => {
 
 // Quay lại tab sau ≥1 phút → tự lấy dữ liệu mới (thấy bài trợ lý / cô vừa đăng)
 document.addEventListener('visibilitychange', () => {
-  if (!document.hidden && S.code && !$('#app').hidden && Date.now() - S.lastSync > 60000) refresh();
+  if (!document.hidden && S.who && !$('#app').hidden && Date.now() - S.lastSync > 60000) refresh();
 });
 
 /* ───────────────────────── Thêm tài liệu ───────────────────────── */
@@ -383,10 +375,22 @@ function setAddType(t) {
   $('#addGo').textContent = t === 'file' ? 'Tải lên' : 'Đăng';
 }
 
+/** Vẽ các ô màu vào el. allowNone = có ô "Không màu" (bài trắng). */
+function swatches(el, selected, allowNone) {
+  const list = (allowNone ? [['', 'Không màu']] : []).concat(PALETTE);
+  el.innerHTML = list.map(([c, n]) => '<button type="button" class="' + (c === selected ? 'on' : '') + (c ? '' : ' none') +
+    '" data-color="' + c + '" style="background:' + (c || '#fff') + '" title="' + n + '"></button>').join('');
+}
+
+let addColor = '';
+$('#addColors').addEventListener('click', e => { const b = e.target.closest('[data-color]'); if (b) { addColor = b.dataset.color; swatches($('#addColors'), addColor, true); } });
+
 function openAdd(packId, type, files) {
   if (!S.packs.length) { toast('Hãy tạo một pack trước nhé 🌱'); openPack(null); return; }
   $('#addForm').reset();
   fillPackSelect($('#addPack'), packId || store.get('lastPack', ''));
+  addColor = '';
+  swatches($('#addColors'), addColor, true);
   pending = [];
   setAddType(type || 'file');
   if (files) addFiles(files);
@@ -449,12 +453,12 @@ $('#addForm').addEventListener('submit', async e => {
       const url = $('#addUrl').value.trim();
       if (!/^https?:\/\/\S+$/i.test(url)) throw new Error('Link phải bắt đầu bằng http:// hoặc https://');
       lockAdd(true);
-      await api('addLink', { packId: packId, url: url, title: title, desc: desc, tags: tags });
+      await api('addLink', { packId: packId, url: url, title: title, desc: desc, tags: tags, color: addColor });
       $('#addDlg').close(); toast('Đã thêm link 🔗');
     } else if (addType === 'note') {
       if (!desc && !title) throw new Error('Ghi chú đang trống');
       lockAdd(true);
-      await api('addNote', { packId: packId, title: title, desc: desc, tags: tags });
+      await api('addNote', { packId: packId, title: title, desc: desc, tags: tags, color: addColor });
       $('#addDlg').close(); toast('Đã thêm ghi chú 📝');
     } else {
       const todo = pending.filter(p => p.st !== 'ok' && p.st !== 'big');
@@ -467,11 +471,10 @@ $('#addForm').addEventListener('submit', async e => {
         try {
           const b64 = await toB64(p.file);
           const t = !multi ? title : (title ? title + ' – ' + baseName(p.file.name) : '');
-          await api('upload', { packId: packId, name: p.file.name, mime: p.file.type, b64: b64, title: t, desc: desc, tags: tags });
+          await api('upload', { packId: packId, name: p.file.name, mime: p.file.type, b64: b64, title: t, desc: desc, tags: tags, color: addColor });
           p.st = 'ok'; okN++;
         } catch (er) {
           p.st = 'err'; p.msg = er.message;
-          if (er.auth) throw er;
         }
         renderFiles();
       }
@@ -483,12 +486,12 @@ $('#addForm').addEventListener('submit', async e => {
     }
   } catch (er) {
     err.textContent = er.message;
-    if (er.auth) { $('#addDlg').close(); authFail(); }
   } finally { lockAdd(false); }
 });
 
 /* ───────────────────────── Sửa / xóa tài liệu ───────────────────────── */
-let editId = null;
+let editId = null, edColor = '';
+$('#edColors').addEventListener('click', e => { const b = e.target.closest('[data-color]'); if (b) { edColor = b.dataset.color; swatches($('#edColors'), edColor, true); } });
 function openEdit(id) {
   const it = S.items.find(i => i.id === id);
   if (!it) return;
@@ -499,6 +502,8 @@ function openEdit(id) {
   $('#edDesc').value = it.desc || '';
   $('#edTags').value = it.tags || '';
   $('#edPin').checked = !!it.pinned;
+  edColor = it.color || '';
+  swatches($('#edColors'), edColor, true);
   fillPackSelect($('#edPack'), it.packId);
   $$('#editDlg .only-link').forEach(x => { x.hidden = it.type !== 'link'; });
   const href = openUrl(it);
@@ -515,7 +520,7 @@ $('#editForm').addEventListener('submit', async e => {
   if (!it) return $('#editDlg').close();
   const body = {
     id: editId, title: $('#edTitle').value.trim(), desc: $('#edDesc').value.trim(),
-    tags: $('#edTags').value, packId: $('#edPack').value, pinned: $('#edPin').checked,
+    tags: $('#edTags').value, packId: $('#edPack').value, pinned: $('#edPin').checked, color: edColor,
   };
   if (it.type === 'link') body.url = $('#edUrl').value.trim();
   try {
@@ -523,7 +528,6 @@ $('#editForm').addEventListener('submit', async e => {
     $('#editDlg').close(); toast('Đã lưu ✅');
   } catch (er) {
     $('#edErr').textContent = er.message;
-    if (er.auth) { $('#editDlg').close(); authFail(); }
   }
 });
 
@@ -542,7 +546,7 @@ let pkId = null, pkEmoji = EMOJIS[0], pkColor = COLORS[0];
 function renderPk() {
   const emos = EMOJIS.includes(pkEmoji) ? EMOJIS : [pkEmoji].concat(EMOJIS);
   $('#pkEmojis').innerHTML = emos.map(x => '<button type="button" class="' + (x === pkEmoji ? 'on' : '') + '" data-emo="' + esc(x) + '">' + esc(x) + '</button>').join('');
-  $('#pkColors').innerHTML = COLORS.map(c => '<button type="button" class="' + (c === pkColor ? 'on' : '') + '" data-color="' + c + '" style="background:' + c + '" title="' + c + '"></button>').join('');
+  swatches($('#pkColors'), pkColor, false);
   const i = S.packs.findIndex(p => p.id === pkId);
   $('#pkLeft').disabled = i <= 0;
   $('#pkRight').disabled = i < 0 || i >= S.packs.length - 1;
@@ -574,7 +578,6 @@ $('#packForm').addEventListener('submit', async e => {
     $('#packDlg').close(); toast(pkId ? 'Đã lưu pack ✅' : 'Đã tạo pack "' + name + '" 🎉');
   } catch (er) {
     $('#pkErr').textContent = er.message;
-    if (er.auth) { $('#packDlg').close(); authFail(); }
   }
 });
 
@@ -611,7 +614,9 @@ function toast(msg, bad) {
 
 /* ───────────────────────── Khởi động ───────────────────────── */
 (function init() {
-  if (S.code && S.who) {
+  store.del('code'); // mã truy cập cũ, không còn dùng
+  if (S.who) store.set('who', S.who);
+  if (S.who) {
     const c = store.get('cache', null);
     if (c) { S.packs = c.packs || []; S.items = c.items || []; }
     showApp();

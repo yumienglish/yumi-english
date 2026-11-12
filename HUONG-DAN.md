@@ -1,6 +1,6 @@
-# Thư viện Yumi: kho tài liệu chung của cô và trợ lý
+# Thư viện Yumi: kho tài liệu chung của cô và Linh
 
-Trang dạng bảng giống Padlet. Mỗi **pack** là một cột, và cô cùng trợ lý đều đăng được file, link hoặc ghi chú vào đó. Bài đăng mặc định **thu gọn thành một dòng**. Bấm vào dòng đó để xem mô tả, tag và ảnh xem trước.
+Trang dạng bảng giống Padlet. Mỗi **pack** là một cột, và cô cùng Linh đều đăng được file, link hoặc ghi chú vào đó. Bài đăng mặc định **thu gọn thành một dòng**. Bấm vào dòng đó để xem mô tả, tag và ảnh xem trước.
 
 ## Dữ liệu nằm ở đâu?
 
@@ -8,7 +8,7 @@ Trang dạng bảng giống Padlet. Mỗi **pack** là một cột, và cô cùn
 |---|---|
 | File tải lên (PDF, Word, ảnh, mp3…) | **Google Drive của cô**, thư mục `📚 Thư viện Yumi`. Mỗi pack là một thư mục con cùng tên |
 | Danh sách bài đăng (tiêu đề, tag, mô tả, người đăng, ngày) | Google Sheet **`Thư viện Yumi – dữ liệu`** trong thư mục trên. Tab `PACKS` chứa danh sách pack, tab `ITEMS` chứa danh sách bài |
-| Trang web | GitHub Pages, cùng chỗ với trang bài tập. Trang **không chứa dữ liệu** và chỉ hiện tài liệu khi nhập đúng mã truy cập |
+| Trang web | GitHub Pages, cùng chỗ với trang bài tập. Trang **không chứa dữ liệu**, chỉ đọc và ghi qua Apps Script |
 
 - **Xóa một bài:** file được chuyển vào **Thùng rác Drive** và khôi phục được trong 30 ngày. Dòng của bài trong Sheet vẫn còn, chỉ bị đánh dấu ở cột "Đã xóa".
 - **Không nên sửa tay** cột ID trong Sheet. Các cột khác như tiêu đề, tag hay mô tả thì sửa được, sau đó bấm 🔄 trên trang để cập nhật.
@@ -21,10 +21,10 @@ Trang dạng bảng giống Padlet. Mỗi **pack** là một cột, và cô cùn
    Đây là một dự án **riêng**, không dán chung với `BTVN` hay `Speaking`.
 2. Xóa code mẫu, dán toàn bộ [`apps-script/Library.gs`](../apps-script/Library.gs) vào, rồi bấm 💾 **Save**.
 3. Chọn hàm **`setup`** rồi bấm **▶ Run**. Google sẽ hỏi quyền: bấm **Review permissions → Advanced → Go to Thư viện Yumi (unsafe) → Allow**.
-   Hộp thư sẽ nhận email **"Thư viện Yumi: cài đặt thành công ✅"**. Email có link thư mục Drive, link Sheet và **mã truy cập** (dạng `yumi-k7m2p`).
+   Hộp thư sẽ nhận email **"Thư viện Yumi: cài đặt thành công ✅"**, kèm link thư mục Drive và link Sheet.
 4. Bấm **Deploy → New deployment →** ⚙ **Web app**, rồi chọn:
    - **Execute as:** `Me`
-   - **Who has access:** `Anyone`. Bắt buộc chọn mục này để trang gọi được máy chủ. Người ngoài không có mã truy cập thì vẫn không xem được gì.
+   - **Who has access:** `Anyone`. Bắt buộc chọn mục này để trang gọi được máy chủ.
    - Bấm **Deploy** rồi **copy Web app URL**. URL kết thúc bằng `/exec`.
 5. Mở [`library/app.js`](app.js) và sửa dòng 5:
    ```js
@@ -32,8 +32,6 @@ Trang dạng bảng giống Padlet. Mỗi **pack** là một cột, và cô cùn
    ```
    Thay bằng URL vừa copy, giữ nguyên dấu nháy.
 
-> **Đổi mã truy cập:** trong Apps Script, vào ⚙ **Project Settings → Script Properties**, sửa giá trị `ACCESS_CODE` rồi **Save**. Ai đang dùng mã cũ sẽ bị đưa về màn hình nhập mã.
->
 > **Sửa `Library.gs` sau này:** vào **Deploy → Manage deployments → ✏️ → Version: New version → Deploy**. URL không đổi.
 
 ## B. Đăng trang
@@ -42,7 +40,9 @@ Push thư mục `d:\Syllabus` lên GitHub như các trang bài tập khác. Sau 
 **<https://miathoday.github.io/grammar-homework/library/>**
 
 Trang này **không** có link trong mục lục bài tập của học sinh, nên học sinh không thấy.
-Gửi **link + mã truy cập** cho trợ lý qua Zalo. Lần đầu vào, mỗi người nhập mã và chọn **Cô** hoặc **Trợ lý**. Máy sẽ nhớ cho các lần sau.
+Gửi link cho Linh qua Zalo. Lần đầu vào, mỗi người bấm **Cô** hoặc **Linh**. Máy sẽ nhớ cho các lần sau. Muốn đổi người thì bấm 🔁 **Đổi người**.
+
+> **Không có mã truy cập:** ai có link trang đều xem, đăng, sửa và xóa được. Chỉ gửi link cho người cần dùng. Nếu lỡ xóa nhầm, file vẫn nằm trong Thùng rác Drive 30 ngày, còn dòng dữ liệu vẫn nằm trong Sheet (xóa chữ `TRUE` ở cột "Đã xóa" là bài hiện lại).
 
 ---
 
@@ -61,6 +61,7 @@ Gửi **link + mã truy cập** cho trợ lý qua Zalo. Lần đầu vào, mỗi
   - Gõ `#listening` để lọc theo tag, hoặc bấm vào một tag để lọc ngay.
   - Các chip phía trên lọc theo loại (Tài liệu, Ảnh, Audio, Link, Ghi chú) và theo người đăng.
 - **Ghim 📌:** bài ghim luôn nằm đầu pack. Bật bằng cách bấm ✏️ **Sửa** rồi tick **Ghim**.
+- **Màu bài:** chọn một trong 20 màu khi đăng, hoặc đổi màu sau bằng ✏️ **Sửa**. Ô gạch chéo nghĩa là không màu. Pack cũng dùng cùng bảng màu này.
 - **Chuyển pack, sửa, xóa:** bấm ✏️ **Sửa** trên bài. Khi chuyển pack, file trong Drive cũng được chuyển sang thư mục mới.
 - **Pack:**
   - Bấm **⋯** trên đầu cột để đổi tên, emoji, màu hoặc dời thứ tự.

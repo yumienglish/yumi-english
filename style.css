@@ -80,6 +80,10 @@ textarea{resize:vertical}
 /* Thẻ gọn: 1 dòng; bấm để mở */
 .card{background:var(--card);border-radius:11px;box-shadow:0 1px 3px rgba(80,40,20,.08);overflow:hidden}
 .card.pinned{box-shadow:0 0 0 1.5px var(--peach) inset,0 1px 3px rgba(80,40,20,.08)}
+.card.colored{background:var(--pc)}
+.card.colored .acts{border-top-color:rgba(0,0,0,.08)}
+.card.colored .acts a,.card.colored .acts button,.card.colored .tag{background:rgba(255,255,255,.65);color:var(--ink)}
+.card.colored .row .sub,.card.colored .acts{color:#5c5666}
 .row{display:flex;align-items:center;gap:7px;padding:6px 6px 6px 9px;cursor:pointer;min-height:36px}
 .row .ico{flex:none;font-size:16px}
 .row .ttl{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:700;font-size:14.5px}
@@ -131,7 +135,9 @@ mark{background:#fff0a8;border-radius:3px;padding:0 1px}
 .emojis,.colors{display:flex;flex-wrap:wrap;gap:6px}
 .emojis button{background:#fff;border:1.5px solid var(--line);border-radius:10px;width:38px;height:38px;font-size:19px;padding:0}
 .emojis button.on,.colors button.on{border-color:var(--ink)}
-.colors button{width:32px;height:32px;border-radius:50%;border:2px solid rgba(0,0,0,.06)}
+.colors button{width:30px;height:30px;border-radius:50%;border:2px solid rgba(0,0,0,.08);padding:0}
+.colors button.on{border-color:var(--ink);box-shadow:0 0 0 2px #fff inset}
+.colors button.none{background:linear-gradient(135deg,#fff 45%,#e05a5a 45% 55%,#fff 55%)!important}
 .move-row{display:flex;gap:8px;margin-top:12px}
 
 .toast{position:fixed;left:50%;bottom:80px;transform:translateX(-50%);z-index:60;background:#33303d;color:#fff;border-radius:12px;padding:10px 16px;font-weight:700;max-width:calc(100vw - 32px);box-shadow:var(--shadow)}

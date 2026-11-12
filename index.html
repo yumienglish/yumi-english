@@ -16,17 +16,13 @@
   <form id="loginForm" class="login-box">
     <div class="login-emo">📚🍑🌱</div>
     <h1>Thư viện Yumi</h1>
-    <p class="muted">Kho tài liệu chung của cô và trợ lý</p>
-    <label>Mã truy cập
-      <input id="codeIn" type="password" autocomplete="current-password" required placeholder="vd: yumi-abc12">
-    </label>
+    <p class="muted">Kho tài liệu chung của cô và Linh</p>
     <div class="who-pick" id="whoPick">
       <span class="lbl">Bạn là</span>
       <button type="button" data-who="Cô">👩‍🏫 Cô</button>
-      <button type="button" data-who="Trợ lý">🧑‍💻 Trợ lý</button>
+      <button type="button" data-who="Linh">🧑‍💻 Linh</button>
     </div>
-    <p class="err" id="loginErr"></p>
-    <button class="primary big" id="loginGo" type="submit">Vào thư viện</button>
+    <p class="muted small">Bấm vào tên để vào thư viện. Máy sẽ nhớ cho lần sau.</p>
   </form>
 </section>
 
@@ -41,7 +37,7 @@
       <span id="whoLabel" class="chip-who"></span>
       <button id="viewBtn" class="ghost sm" title="Mở hết / thu gọn các bài"></button>
       <button id="refreshBtn" class="ghost sm" title="Tải lại">🔄</button>
-      <button id="logoutBtn" class="ghost sm" title="Thoát">🚪<span class="hide-m"> Thoát</span></button>
+      <button id="logoutBtn" class="ghost sm" title="Đổi người dùng">🔁<span class="hide-m"> Đổi người</span></button>
     </div>
   </header>
   <nav class="filters">
@@ -76,6 +72,8 @@
     <label>Tiêu đề <input id="addTitle" maxlength="150"></label>
     <label>Mô tả / ghi chú <textarea id="addDesc" rows="3" maxlength="5000"></textarea></label>
     <label>Tag <input id="addTags" placeholder="vd: listening, unit 3, IE504"></label>
+    <div class="lbl">Màu bài</div>
+    <div class="colors" id="addColors"></div>
     <p class="err" id="addErr"></p>
     <div class="btns">
       <button type="button" class="ghost" data-close>Hủy</button>
@@ -92,6 +90,8 @@
     <label class="only-link">Link <input id="edUrl" type="url"></label>
     <label>Mô tả / ghi chú <textarea id="edDesc" rows="4" maxlength="5000"></textarea></label>
     <label>Tag <input id="edTags"></label>
+    <div class="lbl">Màu bài</div>
+    <div class="colors" id="edColors"></div>
     <label>Chuyển sang pack <select id="edPack"></select></label>
     <label class="check"><input type="checkbox" id="edPin"> 📌 Ghim lên đầu pack</label>
     <p class="muted small" id="edInfo"></p>
