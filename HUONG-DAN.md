@@ -39,6 +39,8 @@ Trang dạng bảng giống Padlet. Mỗi **pack** là một cột, và cô cùn
    Nếu báo *không tìm thấy file*, mở file Quản lý lớp học, copy ID trong link (`/d/`**`ID`**`/edit`) và dán vào `QUAN_LY_SHEET_ID` ở đầu `Library.gs`.
 
 > **Sửa `Library.gs` sau này:** vào **Deploy → Manage deployments → ✏️ → Version: New version → Deploy**. URL không đổi.
+>
+> **Sửa giao diện (`app.js`, `style.css`) sau này:** đổi số `?v=…` ở cuối hai dòng `style.css?v=…` và `app.js?v=…` trong `library/index.html` (ví dụ đổi thành ngày sửa). Nếu không đổi, trình duyệt có thể vẫn dùng bản cũ đã lưu tạm.
 
 ## B. Đăng trang
 
