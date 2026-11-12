@@ -1,0 +1,134 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>Thư viện Yumi</title>
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div id="busy" class="busy" hidden></div>
+
+<!-- Màn hình vào -->
+<section id="login" class="login" hidden>
+  <form id="loginForm" class="login-box">
+    <div class="login-emo">📚🍑🌱</div>
+    <h1>Thư viện Yumi</h1>
+    <p class="muted">Kho tài liệu chung của cô và trợ lý</p>
+    <label>Mã truy cập
+      <input id="codeIn" type="password" autocomplete="current-password" required placeholder="vd: yumi-abc12">
+    </label>
+    <div class="who-pick" id="whoPick">
+      <span class="lbl">Bạn là</span>
+      <button type="button" data-who="Cô">👩‍🏫 Cô</button>
+      <button type="button" data-who="Trợ lý">🧑‍💻 Trợ lý</button>
+    </div>
+    <p class="err" id="loginErr"></p>
+    <button class="primary big" id="loginGo" type="submit">Vào thư viện</button>
+  </form>
+</section>
+
+<!-- Ứng dụng -->
+<div id="app" hidden>
+  <header class="top">
+    <div class="brand">📚 <b>Thư viện Yumi</b></div>
+    <div class="search">
+      <input id="q" type="search" placeholder="🔍 Tìm tài liệu, tag, pack…" title="Gõ không dấu cũng được. Gõ #tag để lọc theo tag. Phím tắt: /" autocomplete="off">
+    </div>
+    <div class="who">
+      <span id="whoLabel" class="chip-who"></span>
+      <button id="viewBtn" class="ghost sm" title="Mở hết / thu gọn các bài"></button>
+      <button id="refreshBtn" class="ghost sm" title="Tải lại">🔄</button>
+      <button id="logoutBtn" class="ghost sm" title="Thoát">🚪<span class="hide-m"> Thoát</span></button>
+    </div>
+  </header>
+  <nav class="filters">
+    <div class="chips" id="typeChips"></div>
+    <div class="chips" id="byChips"></div>
+    <div class="chips jump" id="jumpChips"></div>
+  </nav>
+  <main id="board" class="board"></main>
+  <p id="empty" class="empty" hidden></p>
+  <button id="fab" class="fab" type="button">＋ Thêm</button>
+</div>
+
+<!-- Thêm tài liệu -->
+<dialog id="addDlg" class="dlg">
+  <form id="addForm">
+    <h2>＋ Thêm vào thư viện</h2>
+    <div class="seg" id="addType">
+      <button type="button" data-t="file">📄 File</button>
+      <button type="button" data-t="link">🔗 Link</button>
+      <button type="button" data-t="note">📝 Ghi chú</button>
+    </div>
+    <label>Pack <select id="addPack"></select></label>
+    <div class="only-file">
+      <label class="drop" id="drop">
+        <input type="file" id="fileIn" multiple hidden>
+        <span>📥 Kéo thả file vào đây hoặc <u>bấm để chọn</u></span>
+        <small>Chọn được nhiều file. Tối đa 20MB/file — file lớn hơn: tải lên Drive rồi dán link.</small>
+      </label>
+      <ul id="fileList" class="files"></ul>
+    </div>
+    <label class="only-link">Link <input id="addUrl" type="url" placeholder="https://…"></label>
+    <label>Tiêu đề <input id="addTitle" maxlength="150"></label>
+    <label>Mô tả / ghi chú <textarea id="addDesc" rows="3" maxlength="5000"></textarea></label>
+    <label>Tag <input id="addTags" placeholder="vd: listening, unit 3, IE504"></label>
+    <p class="err" id="addErr"></p>
+    <div class="btns">
+      <button type="button" class="ghost" data-close>Hủy</button>
+      <button type="submit" class="primary" id="addGo">Đăng</button>
+    </div>
+  </form>
+</dialog>
+
+<!-- Sửa tài liệu -->
+<dialog id="editDlg" class="dlg">
+  <form id="editForm">
+    <h2>✏️ Sửa tài liệu</h2>
+    <label>Tiêu đề <input id="edTitle" maxlength="150"></label>
+    <label class="only-link">Link <input id="edUrl" type="url"></label>
+    <label>Mô tả / ghi chú <textarea id="edDesc" rows="4" maxlength="5000"></textarea></label>
+    <label>Tag <input id="edTags"></label>
+    <label>Chuyển sang pack <select id="edPack"></select></label>
+    <label class="check"><input type="checkbox" id="edPin"> 📌 Ghim lên đầu pack</label>
+    <p class="muted small" id="edInfo"></p>
+    <p class="err" id="edErr"></p>
+    <div class="btns">
+      <button type="button" class="danger" id="edDel">🗑 Xóa</button>
+      <span class="sp"></span>
+      <button type="button" class="ghost" data-close>Hủy</button>
+      <button type="submit" class="primary">Lưu</button>
+    </div>
+  </form>
+</dialog>
+
+<!-- Pack -->
+<dialog id="packDlg" class="dlg">
+  <form id="packForm">
+    <h2 id="pkTitle">Pack mới</h2>
+    <label>Tên pack <input id="pkName" maxlength="60" required placeholder="vd: IELTS Foundation – Pack 1"></label>
+    <div class="lbl">Emoji</div>
+    <div class="emojis" id="pkEmojis"></div>
+    <div class="lbl">Màu</div>
+    <div class="colors" id="pkColors"></div>
+    <div class="only-edit move-row">
+      <button type="button" class="ghost sm" id="pkLeft">← Dời lên trước</button>
+      <button type="button" class="ghost sm" id="pkRight">Dời ra sau →</button>
+    </div>
+    <p class="err" id="pkErr"></p>
+    <div class="btns">
+      <button type="button" class="danger only-edit" id="pkDel">🗑 Xóa pack</button>
+      <span class="sp"></span>
+      <button type="button" class="ghost" data-close>Hủy</button>
+      <button type="submit" class="primary">Lưu</button>
+    </div>
+  </form>
+</dialog>
+
+<div id="toast" class="toast" hidden></div>
+<script src="app.js"></script>
+</body>
+</html>
