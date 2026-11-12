@@ -28,7 +28,7 @@ const store = {
 
 const S = {
   who: store.get('who', '') === 'Trợ lý' ? 'Linh' : store.get('who', ''),
-  packs: [], items: [], q: '', type: '', by: '',
+  packs: [], items: [], comments: [], classes: {}, drafts: {}, q: '', type: '', by: '',
   full: store.get('full', false), // true = mở hết các bài
   open: new Set(), shut: new Set(), more: new Set(),
   lastSync: 0,
@@ -73,6 +73,8 @@ async function api(action, body) {
 function setData(d) {
   S.packs = d.packs || [];
   S.items = d.items || [];
+  S.comments = d.comments || [];
+  S.classes = d.classes || {};
   S.lastSync = Date.now();
   store.set('cache', d);
   render();
@@ -109,6 +111,7 @@ $('#refreshBtn').addEventListener('click', () => refresh().then(() => toast('Đ�
 
 /* ───────────────────────── Hiển thị ───────────────────────── */
 function kindOf(it) {
+  if (it.type === 'schedule') return { icon: '📅', label: 'Lịch tuần (tự động)', cat: 'note' };
   if (it.type === 'note') return { icon: '📝', label: 'Ghi chú', cat: 'note' };
   if (it.type === 'link') {
     const u = it.url || '';
@@ -162,10 +165,77 @@ function fmtSize(b) {
 function linkify(escaped) {
   return escaped.replace(/https?:\/\/[^\s<]+/g, u => '<a href="' + u + '" target="_blank" rel="noopener">' + u + '</a>');
 }
+const MONTHS = ['JANUARY', 'FEBRUARY', 'MARCH', 'APRIL', 'MAY', 'JUNE', 'JULY', 'AUGUST', 'SEPTEMBER', 'OCTOBER', 'NOVEMBER', 'DECEMBER'];
+// {MONTH} trong tiêu đề → tên tháng hiện tại (vd "Task {MONTH}" → "Task NOVEMBER")
+const fillTitle = s => String(s || '').replace(/\{MONTH\}/gi, MONTHS[new Date().getMonth()]);
+
 function titleOf(it) {
-  if (it.title) return it.title;
+  if (it.type === 'schedule') {
+    const w = weekOf(it);
+    return w.length ? 'Lịch dạy tuần ' + ddmm(w[0].date) + ' – ' + ddmm(w[w.length - 1].date) : fillTitle(it.title);
+  }
+  if (it.title) return fillTitle(it.title);
   if (it.type === 'note') return (String(it.desc || '').split('\n')[0] || 'Ghi chú').slice(0, 80);
   return 'Không tên';
+}
+
+/* ───── Lịch tuần: dữ liệu JSON do máy chủ ghi (14 ngày), trang chọn đúng tuần hiện tại ───── */
+const WD = ['T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'CN'];
+const ddmm = s => String(s).slice(8, 10) + '/' + String(s).slice(5, 7);
+const todayYmd = () => new Date().toLocaleDateString('sv-SE', { timeZone: 'Asia/Ho_Chi_Minh' });
+function schedOf(it) {
+  if (it._sc !== undefined) return it._sc;
+  try { it._sc = JSON.parse(it.desc || 'null'); } catch (_) { it._sc = null; }
+  return it._sc;
+}
+function weekOf(it) {
+  const sc = schedOf(it);
+  const days = sc && Array.isArray(sc.days) ? sc.days : [];
+  if (!days.length) return [];
+  const t = todayYmd();
+  const i = days.findIndex(d => d.date === t);
+  const start = i >= 0 ? Math.floor(i / 7) * 7 : (t > days[days.length - 1].date ? Math.max(0, days.length - 7) : 0);
+  return days.slice(start, start + 7);
+}
+const safeColor = c => /^#[0-9a-f]{3,8}$/i.test(String(c || '').trim()) ? String(c).trim() : '';
+function classChip(code, extra) {
+  const c = S.classes[code] || {};
+  const bg = safeColor(c.bg), fg = safeColor(c.fg);
+  return '<span class="cchip" style="' + (bg ? 'background:' + bg + ';' : '') + (fg ? 'color:' + fg + ';' : '') + '">' +
+    (c.emo ? esc(c.emo) + ' ' : '') + esc(code) + (extra ? ' <small>' + esc(extra) + '</small>' : '') + '</span>';
+}
+function scheduleHTML(it) {
+  const w = weekOf(it);
+  const sc = schedOf(it) || {};
+  if (sc.classes) Object.keys(sc.classes).forEach(k => { if (!S.classes[k]) S.classes[k] = sc.classes[k]; });
+  const t = todayYmd();
+  if (!w.length) return '<p class="desc">Chưa có dữ liệu lịch. Bấm 🔄 Đồng bộ ngay.</p>';
+  return '<div class="sched">' + w.map((d, i) =>
+    '<div class="sd' + (d.date === t ? ' today' : '') + '"><span class="wd">' + WD[i] + ' <small>' + ddmm(d.date) + '</small></span>' +
+    '<span class="cl">' + (d.list.length ? d.list.map(x => classChip(x.cls, x.time)).join('') : '<span class="muted">—</span>') + '</span></div>'
+  ).join('') + '</div>';
+}
+
+/* ───── Thả tim + bình luận ───── */
+const commentsOf = id => S.comments.filter(c => c.itemId === id).sort((a, b) => String(a.createdAt).localeCompare(String(b.createdAt)));
+function fmtDT(iso) {
+  const d = new Date(iso);
+  return isNaN(d) ? '' : fmtShort(iso) + ' ' + String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0');
+}
+function socialHTML(it) {
+  const likes = it.likes || [];
+  const mine = likes.includes(S.who);
+  const cm = commentsOf(it.id);
+  return '<div class="social">' +
+    '<button type="button" class="like' + (mine ? ' on' : '') + '" data-act="like" title="' + (likes.length ? esc(likes.join(', ')) + ' đã thả tim' : 'Thả tim') + '">' +
+      (mine ? '❤️' : '🤍') + (likes.length ? ' ' + esc(likes.join(', ')) : '') + '</button>' +
+    '<div class="cmts">' + cm.map(c =>
+      '<div class="cmt"><div class="cmt-h"><b>' + esc(c.by) + '</b> <span>' + fmtDT(c.createdAt) + '</span>' +
+        (c.by === S.who ? '<button type="button" class="icon" data-act="delCmt" data-cid="' + esc(c.id) + '" title="Xóa bình luận">✕</button>' : '') + '</div>' +
+      '<div class="cmt-t">' + linkify(esc(c.text)) + '</div></div>').join('') +
+      '<div class="cmt-new"><textarea rows="1" data-draft="' + esc(it.id) + '" placeholder="Viết bình luận… (Enter để gửi)">' + esc(S.drafts[it.id] || '') + '</textarea>' +
+      '<button type="button" data-act="sendCmt">Gửi</button></div>' +
+    '</div></div>';
 }
 
 const tokensOf = q => norm(q).split(/\s+/).filter(Boolean);
@@ -176,21 +246,25 @@ function match(it, tokens, pack) {
   if (S.by && it.by !== S.by) return false;
   if (!tokens.length) return true;
   const tagN = splitTags(it.tags).map(norm);
-  const hay = norm([it.title, it.tags, it.desc, pack.name, it.by, k.label, it.url].join(' '));
+  const body = it.type === 'schedule' ? weekOf(it).map(d => d.list.map(x => x.cls).join(' ')).join(' ') : it.desc;
+  const cmts = commentsOf(it.id).map(c => c.by + ' ' + c.text).join(' ');
+  const hay = norm([titleOf(it), it.tags, body, pack.name, it.by, k.label, it.url, cmts].join(' '));
   return tokens.every(t => t[0] === '#' ? (t.length === 1 || tagN.some(g => g.startsWith(t.slice(1)))) : hay.includes(t));
 }
 
 const sortFn = (a, b) => (b.pinned - a.pinned) || String(b.createdAt).localeCompare(String(a.createdAt));
 
+// Lịch tuần mặc định mở sẵn; các bài khác mặc định thu gọn
+const defOpen = it => S.full || (it && it.type === 'schedule');
 function isOpen(it, tokens) {
-  const base = S.full ? !S.shut.has(it.id) : S.open.has(it.id);
+  const base = defOpen(it) ? !S.shut.has(it.id) : S.open.has(it.id);
   if (base) return true;
   // đang tìm và từ khóa nằm trong phần bị ẩn (mô tả, tag…) → tự mở để thấy
   const t = norm(titleOf(it));
   return tokens.some(x => x[0] !== '#' && !t.includes(x));
 }
 function setOpen(id, v) {
-  if (S.full) { if (v) S.shut.delete(id); else S.shut.add(id); }
+  if (defOpen(S.items.find(i => i.id === id))) { if (v) S.shut.delete(id); else S.shut.add(id); }
   else { if (v) S.open.add(id); else S.open.delete(id); }
 }
 
@@ -200,24 +274,37 @@ function cardHTML(it, tokens) {
   const title = titleOf(it);
   const thumb = thumbOf(it);
   const tags = splitTags(it.tags);
+  const sched = it.type === 'schedule';
+  // "PET01 · Unit 6 Kahoot" → nhãn lớp có màu + phần tên còn lại
+  const m = title.match(/^(.{1,24}?) · (.+)$/);
+  const label = m ? classChip(m[1]) + ' ' + esc(m[2]) : esc(title);
+  const inner = (it.pinned ? '📌 ' : '') + label;
   const ttl = href
-    ? '<a class="ttl" href="' + esc(href) + '" target="_blank" rel="noopener" title="' + esc(title) + '">' + (it.pinned ? '📌 ' : '') + esc(title) + '</a>'
-    : '<span class="ttl" title="' + esc(title) + '">' + (it.pinned ? '📌 ' : '') + esc(title) + '</span>';
+    ? '<a class="ttl" href="' + esc(href) + '" target="_blank" rel="noopener" title="' + esc(title) + '">' + inner + '</a>'
+    : '<span class="ttl" title="' + esc(title) + '">' + inner + '</span>';
   const color = /^#[0-9a-f]{6}$/i.test(it.color || '') ? ' style="--pc:' + it.color + '"' : '';
-  return '<article class="card' + (isOpen(it, tokens) ? ' open' : '') + (it.pinned ? ' pinned' : '') + (color ? ' colored' : '') + '" data-id="' + esc(it.id) + '"' + color + '>' +
+  const nLike = (it.likes || []).length, nCmt = commentsOf(it.id).length;
+  const badges = (nLike ? '<span class="bdg">❤️' + nLike + '</span>' : '') + (nCmt ? '<span class="bdg">💬' + nCmt + '</span>' : '');
+  const sc = sched ? schedOf(it) : null;
+  return '<article class="card' + (isOpen(it, tokens) ? ' open' : '') + (it.pinned ? ' pinned' : '') + (color ? ' colored' : '') + (sched ? ' schedule' : '') + '" data-id="' + esc(it.id) + '"' + color + '>' +
     '<div class="row" data-act="toggle" title="Bấm để xem thêm / thu gọn">' +
-      '<span class="ico">' + k.icon + '</span>' + ttl +
-      '<span class="sub">' + esc(it.by) + ' · ' + fmtShort(it.createdAt) + '</span>' +
+      '<span class="ico">' + k.icon + '</span>' + ttl + badges +
+      '<span class="sub">' + (sched ? 'tự động' : esc(it.by) + ' · ' + fmtShort(it.createdAt)) + '</span>' +
       '<span class="tog">▾</span>' +
     '</div>' +
     '<div class="body">' +
       (thumb ? '<a class="thumb" href="' + esc(href || thumb) + '" target="_blank" rel="noopener"><img loading="lazy" alt="" src="' + esc(thumb) + '"></a>' : '') +
-      (it.desc ? '<p class="desc">' + linkify(esc(it.desc)) + '</p>' : '') +
+      (sched ? scheduleHTML(it) : it.desc ? '<p class="desc">' + linkify(esc(it.desc)) + '</p>' : '') +
       (tags.length ? '<div class="tags">' + tags.map(t => '<button type="button" class="tag" data-act="tag" data-tag="' + esc(t) + '">#' + esc(t) + '</button>').join('') + '</div>' : '') +
-      '<div class="acts"><span>' + k.label + (it.size ? ' · ' + fmtSize(it.size) : '') + ' · ' + fmtDate(it.createdAt) + '</span><span class="sp"></span>' +
-        (it.type === 'file' && it.fileId ? '<a href="https://drive.google.com/uc?export=download&amp;id=' + encodeURIComponent(it.fileId) + '" title="Tải về">⬇️ Tải</a>' : '') +
-        '<button type="button" data-act="edit" title="Sửa / chuyển pack / xóa">✏️ Sửa</button>' +
+      '<div class="acts">' +
+        (sched
+          ? '<span title="Lấy từ web Quản lý lớp học, tự cập nhật 2 ngày/lần">Tự cập nhật' + (sc && sc.syncedAt ? ' · ' + fmtDT(sc.syncedAt) : '') + '</span><span class="sp"></span>' +
+            '<button type="button" data-act="sync" title="Lấy lịch mới nhất ngay">🔄 Đồng bộ</button>'
+          : '<span>' + k.label + (it.size ? ' · ' + fmtSize(it.size) : '') + ' · ' + fmtDate(it.createdAt) + '</span><span class="sp"></span>' +
+            (it.type === 'file' && it.fileId ? '<a href="https://drive.google.com/uc?export=download&amp;id=' + encodeURIComponent(it.fileId) + '" title="Tải về">⬇️ Tải</a>' : '') +
+            '<button type="button" data-act="edit" title="Sửa / chuyển pack / xóa">✏️ Sửa</button>') +
       '</div>' +
+      socialHTML(it) +
     '</div>' +
   '</article>';
 }
@@ -257,7 +344,14 @@ function render() {
     '</section>';
   });
   if (!filtering) html += '<button type="button" class="col new-pack" data-act="newPack">＋ Thêm pack mới</button>';
+  // giữ con trỏ trong ô bình luận đang gõ khi bảng được vẽ lại
+  const ae = document.activeElement;
+  const typing = ae && ae.dataset && ae.dataset.draft ? { id: ae.dataset.draft, pos: ae.selectionStart } : null;
   $('#board').innerHTML = html;
+  if (typing) {
+    const ta = $('#board').querySelector('textarea[data-draft="' + CSS.escape(typing.id) + '"]');
+    if (ta) { ta.focus(); try { ta.setSelectionRange(typing.pos, typing.pos); } catch (_) {} }
+  }
 
   const empty = $('#empty');
   if (!S.packs.length) { empty.hidden = false; empty.innerHTML = 'Chưa có pack nào. Bấm <b>＋ Thêm pack mới</b> để bắt đầu 🌱'; }
@@ -293,7 +387,7 @@ document.addEventListener('click', e => {
     else if ('by' in chip.dataset) S.by = S.by === chip.dataset.by ? '' : chip.dataset.by;
     else {
       const col = document.getElementById('pk-' + chip.dataset.jump);
-      if (col) col.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'start' });
+      if (col) col.scrollIntoView({ behavior: 'smooth', block: 'start' });
       return;
     }
     render();
@@ -324,6 +418,52 @@ document.addEventListener('click', e => {
       if (S.more.has(col.dataset.pack)) S.more.delete(col.dataset.pack); else S.more.add(col.dataset.pack);
       render();
       break;
+    case 'like': {
+      const it = S.items.find(i => i.id === card.dataset.id);
+      if (!it) break;
+      const l = it.likes || [];
+      it.likes = l.includes(S.who) ? l.filter(x => x !== S.who) : l.concat(S.who); // hiện ngay, máy chủ ghi sau
+      render();
+      api('toggleLike', { id: it.id }).catch(er => { toast(er.message, true); refresh(); });
+      break;
+    }
+    case 'sendCmt': sendComment(card.dataset.id); break;
+    case 'delCmt':
+      if (confirm('Xóa bình luận này?')) api('deleteComment', { id: a.dataset.cid }).catch(er => toast(er.message, true));
+      break;
+    case 'sync':
+      a.disabled = true;
+      api('syncSchedule', {}).then(j => toast(j.msg || 'Đã đồng bộ lịch ✅')).catch(er => { a.disabled = false; toast(er.message, true); });
+      break;
+  }
+});
+
+/* ───── Bình luận: nháp được giữ khi bảng vẽ lại; Enter gửi, Shift+Enter xuống dòng ───── */
+async function sendComment(id) {
+  const text = String(S.drafts[id] || '').trim();
+  if (!text) return;
+  setOpen(id, true);
+  S.drafts[id] = '';
+  try {
+    await api('addComment', { itemId: id, text: text });
+  } catch (er) {
+    S.drafts[id] = text;
+    render();
+    toast(er.message, true);
+  }
+}
+$('#board').addEventListener('input', e => {
+  const ta = e.target;
+  if (!ta.dataset || !ta.dataset.draft) return;
+  S.drafts[ta.dataset.draft] = ta.value;
+  ta.style.height = 'auto';
+  ta.style.height = Math.min(ta.scrollHeight, 160) + 'px';
+});
+$('#board').addEventListener('keydown', e => {
+  const ta = e.target;
+  if (ta.dataset && ta.dataset.draft && e.key === 'Enter' && !e.shiftKey && !e.isComposing) {
+    e.preventDefault();
+    sendComment(ta.dataset.draft);
   }
 });
 
@@ -618,7 +758,7 @@ function toast(msg, bad) {
   if (S.who) store.set('who', S.who);
   if (S.who) {
     const c = store.get('cache', null);
-    if (c) { S.packs = c.packs || []; S.items = c.items || []; }
+    if (c) { S.packs = c.packs || []; S.items = c.items || []; S.comments = c.comments || []; S.classes = c.classes || {}; }
     showApp();
     refresh();
   } else {

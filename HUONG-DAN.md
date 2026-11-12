@@ -32,6 +32,12 @@ Trang dạng bảng giống Padlet. Mỗi **pack** là một cột, và cô cùn
    ```
    Thay bằng URL vừa copy, giữ nguyên dấu nháy.
 
+6. **Bật Lịch tuần tự động** (làm 1 lần): trong Apps Script, chọn hàm **`enableScheduleSync`** rồi bấm **▶ Run**. Google sẽ hỏi thêm quyền chạy hẹn giờ, cô bấm **Allow**. Script sẽ:
+   - tìm file **Quản lý lớp học** trong Drive và đọc tab `Lop` (màu lớp) và `Lich` (lịch dạy);
+   - tạo bài **📅 Lịch dạy tuần** trong pack *Việc cần làm*, tô màu theo đúng màu lớp;
+   - tự đồng bộ lại **2 ngày một lần**, khoảng 6–7 giờ sáng.
+   Nếu báo *không tìm thấy file*, mở file Quản lý lớp học, copy ID trong link (`/d/`**`ID`**`/edit`) và dán vào `QUAN_LY_SHEET_ID` ở đầu `Library.gs`.
+
 > **Sửa `Library.gs` sau này:** vào **Deploy → Manage deployments → ✏️ → Version: New version → Deploy**. URL không đổi.
 
 ## B. Đăng trang
@@ -50,7 +56,7 @@ Gửi link cho Linh qua Zalo. Lần đầu vào, mỗi người bấm **Cô** ho
 
 - **Thêm bài:**
   - Bấm nút **＋ Thêm** góc dưới, hoặc **＋ Thêm** trong từng pack. Chọn 📄 File, 🔗 Link hoặc 📝 Ghi chú.
-  - **Kéo thả file thẳng vào một cột pack** để tải lên nhanh. Có thể chọn nhiều file cùng lúc.
+  - **Kéo thả file thẳng vào một pack** để tải lên nhanh. Có thể chọn nhiều file cùng lúc.
   - Mỗi file tối đa **20MB**. File lớn hơn, ví dụ video, thì tải lên Drive trước rồi dán link.
 - **Xem nhanh:**
   - Mỗi bài chỉ hiện một dòng. Bấm vào **tên bài** để mở file, bấm vào **chỗ khác trên dòng** để xem mô tả, tag và ảnh.
@@ -60,11 +66,17 @@ Gửi link cho Linh qua Zalo. Lần đầu vào, mỗi người bấm **Cô** ho
   - Gõ vào ô tìm kiếm, **gõ không dấu cũng được** ("bai tap" vẫn tìm ra "Bài tập").
   - Gõ `#listening` để lọc theo tag, hoặc bấm vào một tag để lọc ngay.
   - Các chip phía trên lọc theo loại (Tài liệu, Ảnh, Audio, Link, Ghi chú) và theo người đăng.
+- **Thả tim ❤️ và bình luận 💬:** mở một bài ra, bấm 🤍 để thả tim (bấm lại để bỏ). Gõ vào ô *Viết bình luận…* rồi nhấn **Enter** để gửi, **Shift+Enter** để xuống dòng. Bài nào có tim hoặc bình luận sẽ hiện số ❤️ và 💬 ngay trên dòng thu gọn. Mỗi người chỉ xóa được bình luận của chính mình (nút ✕).
+- **Lịch dạy tuần 📅:** tự lấy từ web Quản lý lớp học, luôn hiện tuần hiện tại (Thứ Hai → Chủ nhật), có tô vàng ngày hôm nay. Đổi lịch bên web Quản lý thì tối đa 2 ngày sau Thư viện tự cập nhật. Muốn cập nhật ngay, bấm **🔄 Đồng bộ** trên bài lịch.
+- **Tên tháng tự đổi:** gõ `{MONTH}` trong tiêu đề, ví dụ `Task {MONTH}` sẽ hiện thành *Task NOVEMBER*, sang tháng 12 tự thành *Task DECEMBER*.
+- **Ghi rõ lớp:** đặt mã lớp ở đầu tiêu đề và ngăn bằng ` · `, ví dụ `PET01 · Unit 6 Kahoot`. Mã lớp sẽ hiện thành nhãn có màu giống màu lớp bên lịch dạy.
 - **Ghim 📌:** bài ghim luôn nằm đầu pack. Bật bằng cách bấm ✏️ **Sửa** rồi tick **Ghim**.
 - **Màu bài:** chọn một trong 20 màu khi đăng, hoặc đổi màu sau bằng ✏️ **Sửa**. Ô gạch chéo nghĩa là không màu. Pack cũng dùng cùng bảng màu này.
 - **Chuyển pack, sửa, xóa:** bấm ✏️ **Sửa** trên bài. Khi chuyển pack, file trong Drive cũng được chuyển sang thư mục mới.
 - **Pack:**
-  - Bấm **⋯** trên đầu cột để đổi tên, emoji, màu hoặc dời thứ tự.
+  - Các pack xếp thành lưới, **mỗi hàng tối đa 4 pack**. Pack mới thêm vào sẽ nằm ở hàng dưới. Trên điện thoại, các pack xếp dọc.
+  - Bấm **＋ Thêm pack mới** (ô cuối cùng) để tạo pack.
+  - Bấm **⋯** trên đầu pack để đổi tên, emoji, màu hoặc dời thứ tự.
   - Chỉ xóa được pack khi pack đã trống.
 - **Cập nhật:** khi một người đăng bài, người kia bấm 🔄 để thấy. Trang cũng tự tải lại khi quay lại tab sau hơn 1 phút.
 
@@ -72,3 +84,5 @@ Gửi link cho Linh qua Zalo. Lần đầu vào, mỗi người bấm **Cô** ho
 
 - Ai có **link của một file** đều mở được file đó, giống Padlet. Vì vậy **không** đưa thông tin học phí hay dữ liệu nhạy cảm vào thư viện.
 - File nằm trong Drive của cô nên dùng chung **15GB miễn phí** của tài khoản Google.
+- Bài Lịch tuần chỉ chứa **ngày, giờ, mã lớp và màu lớp**. Thư viện không đọc học phí hay thông tin học sinh từ file Quản lý lớp học.
+- Bình luận được lưu ở tab `COMMENTS` trong Sheet dữ liệu. Thả tim được lưu ở cột *Thả tim (ai)* của tab `ITEMS`.
