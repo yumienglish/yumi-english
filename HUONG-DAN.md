@@ -44,8 +44,16 @@ Trang dạng bảng giống Padlet. Mỗi **pack** là một cột, và cô cùn
 
 ## B. Đăng trang
 
-Push thư mục `d:\Syllabus` lên GitHub như các trang bài tập khác. Sau 1–2 phút trang sẽ có ở địa chỉ:
-**<https://miathoday.github.io/grammar-homework/library/>**
+Thư viện có trang web riêng ở kho GitHub **yumi-english**, địa chỉ:
+**<https://miathoday.github.io/yumi-english/>**
+(Link cũ `…/grammar-homework/library/` vẫn tự chuyển sang đây.)
+
+**Mỗi lần sửa thư viện** (thư mục `library/`): commit và push `main` như bình thường, rồi chạy thêm 2 lệnh sau trong thư mục `d:\Syllabus` để đưa bản mới lên kho `yumi-english`:
+```
+git subtree split --prefix=library main -b yumi-site
+git push yumi yumi-site:main --force
+```
+Sau 1–2 phút trang `yumi-english` tự cập nhật. Remote `yumi` (https://github.com/miathoday/yumi-english.git) đã được thêm sẵn trên máy.
 
 Trang này **không** có link trong mục lục bài tập của học sinh, nên học sinh không thấy.
 Gửi link cho Linh qua Zalo. Lần đầu vào, mỗi người bấm **Cô** hoặc **Linh**. Máy sẽ nhớ cho các lần sau. Muốn đổi người thì bấm 🔁 **Đổi người**.
