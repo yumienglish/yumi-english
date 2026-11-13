@@ -176,6 +176,24 @@ mark{background:#fff0a8;border-radius:3px;padding:0 1px}
 .colors button.none{background:linear-gradient(135deg,#fff 45%,#e05a5a 45% 55%,#fff 55%)!important}
 .move-row{display:flex;gap:8px;margin-top:12px}
 
+/* Hộp Thêm / Sửa bài: gần kín màn hình, ô mô tả lấp hết chỗ trống */
+.dlg.big{width:min(1000px,calc(100vw - 24px));height:calc(100vh - 24px);height:calc(100dvh - 24px);max-height:none}
+.dlg.big form{display:flex;flex-direction:column;height:100%;overflow:auto}
+.dlg.big label.grow{flex:1 1 auto;display:flex;flex-direction:column;min-height:200px}
+.dlg.big label.grow textarea{flex:1;min-height:180px;resize:none;line-height:1.55;font-size:15px}
+.dlg.big .btns{margin-top:10px}
+.dlg-h{display:flex;align-items:center;gap:10px;margin-bottom:6px}
+.dlg-h h2{margin:0}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:0 12px}
+@media (max-width:600px){.two{grid-template-columns:1fr}}
+
+/* Màu bài: 1 chấm nhỏ, bấm mới hiện bảng màu */
+.cpick{position:relative;margin-left:auto}
+.cdot{display:block;width:30px;height:30px;border-radius:50%;padding:0;border:2px solid rgba(0,0,0,.18);box-shadow:0 0 0 2px #fff inset;cursor:pointer}
+.cdot:hover{border-color:var(--ink)}
+.cdot.none{background:linear-gradient(135deg,#fff 45%,#e05a5a 45% 55%,#fff 55%)!important}
+.colors.pop{position:absolute;right:0;top:38px;z-index:5;width:max-content;max-width:min(330px,calc(100vw - 70px));background:#fff;border-radius:14px;padding:10px;box-shadow:0 12px 32px rgba(60,30,20,.22)}
+
 .toast{position:fixed;left:50%;bottom:80px;transform:translateX(-50%);z-index:60;background:#33303d;color:#fff;border-radius:12px;padding:10px 16px;font-weight:700;max-width:calc(100vw - 32px);box-shadow:var(--shadow)}
 .toast.bad{background:var(--danger)}
 

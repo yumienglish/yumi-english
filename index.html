@@ -6,7 +6,7 @@
 <meta name="robots" content="noindex, nofollow">
 <title>Thư viện Yumi</title>
 <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="style.css?v=20261113a">
+<link rel="stylesheet" href="style.css?v=20261113b">
 </head>
 <body>
 <div id="busy" class="busy" hidden></div>
@@ -51,9 +51,15 @@
 </div>
 
 <!-- Thêm tài liệu -->
-<dialog id="addDlg" class="dlg">
+<dialog id="addDlg" class="dlg big">
   <form id="addForm">
-    <h2>＋ Thêm vào thư viện</h2>
+    <div class="dlg-h">
+      <h2>＋ Thêm vào thư viện</h2>
+      <div class="cpick">
+        <button type="button" class="cdot" data-pop="addColors" title="Màu bài (bấm để chọn)"></button>
+        <div class="colors pop" id="addColors" hidden></div>
+      </div>
+    </div>
     <div class="seg" id="addType">
       <button type="button" data-t="file">📄 File</button>
       <button type="button" data-t="link">🔗 Link</button>
@@ -70,10 +76,8 @@
     </div>
     <label class="only-link">Link <input id="addUrl" type="url" placeholder="https://…"></label>
     <label>Tiêu đề <input id="addTitle" maxlength="150"></label>
-    <label>Mô tả / ghi chú <textarea id="addDesc" rows="3" maxlength="5000"></textarea></label>
+    <label class="grow">Mô tả / ghi chú <textarea id="addDesc" maxlength="20000"></textarea></label>
     <label>Tag <input id="addTags" placeholder="vd: listening, unit 3, IE504"></label>
-    <div class="lbl">Màu bài</div>
-    <div class="colors" id="addColors"></div>
     <p class="err" id="addErr"></p>
     <div class="btns">
       <button type="button" class="ghost" data-close>Hủy</button>
@@ -83,17 +87,23 @@
 </dialog>
 
 <!-- Sửa tài liệu -->
-<dialog id="editDlg" class="dlg">
+<dialog id="editDlg" class="dlg big">
   <form id="editForm">
-    <h2>✏️ Sửa tài liệu</h2>
+    <div class="dlg-h">
+      <h2>✏️ Sửa tài liệu</h2>
+      <div class="cpick">
+        <button type="button" class="cdot" data-pop="edColors" title="Màu bài (bấm để chọn)"></button>
+        <div class="colors pop" id="edColors" hidden></div>
+      </div>
+    </div>
     <label>Tiêu đề <input id="edTitle" maxlength="150"></label>
     <p class="muted small hint">Mẹo: <code>{MONTH}</code> tự đổi thành tháng hiện tại (vd <code>Task {MONTH}</code>). Ghi lớp ở đầu như <code>PET01 · Unit 6 Kahoot</code> để hiện nhãn màu lớp.</p>
     <label class="only-link">Link <input id="edUrl" type="url"></label>
-    <label>Mô tả / ghi chú <textarea id="edDesc" rows="4" maxlength="5000"></textarea></label>
-    <label>Tag <input id="edTags"></label>
-    <div class="lbl">Màu bài</div>
-    <div class="colors" id="edColors"></div>
-    <label>Chuyển sang pack <select id="edPack"></select></label>
+    <label class="grow">Mô tả / ghi chú <textarea id="edDesc" maxlength="20000"></textarea></label>
+    <div class="two">
+      <label>Tag <input id="edTags"></label>
+      <label>Chuyển sang pack <select id="edPack"></select></label>
+    </div>
     <label class="check"><input type="checkbox" id="edPin"> 📌 Ghim lên đầu pack</label>
     <p class="muted small" id="edInfo"></p>
     <p class="err" id="edErr"></p>
@@ -130,6 +140,6 @@
 </dialog>
 
 <div id="toast" class="toast" hidden></div>
-<script src="app.js?v=20261113a"></script>
+<script src="app.js?v=20261113b"></script>
 </body>
 </html>

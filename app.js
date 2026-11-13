@@ -556,7 +556,6 @@ function setAddType(t) {
   $$('#addDlg .only-file').forEach(x => { x.hidden = t !== 'file'; });
   $$('#addDlg .only-link').forEach(x => { x.hidden = t !== 'link'; });
   $('#addTitle').placeholder = t === 'file' ? 'Để trống = dùng tên file' : t === 'link' ? 'Để trống = dùng địa chỉ link' : 'Không bắt buộc';
-  $('#addDesc').rows = t === 'note' ? 6 : 3;
   $('#addGo').textContent = t === 'file' ? 'Tải lên' : 'Đăng';
 }
 
@@ -567,15 +566,32 @@ function swatches(el, selected, allowNone) {
     '" data-color="' + c + '" style="background:' + (c || '#fff') + '" title="' + n + '"></button>').join('');
 }
 
+/** Màu bài: 1 chấm nhỏ trên đầu hộp; bấm chấm mới hiện bảng màu, chọn xong tự đóng. */
+function colorPick(popId, val) {
+  const pop = document.getElementById(popId);
+  swatches(pop, val, true);
+  const dot = pop.parentNode.querySelector('.cdot');
+  dot.style.background = val || '#fff';
+  dot.classList.toggle('none', !val);
+  const name = (PALETTE.find(p => p[0] === val) || [0, 'Không màu'])[1];
+  dot.title = 'Màu bài: ' + name + ' (bấm để đổi)';
+  pop.hidden = true;
+}
+document.addEventListener('click', e => {
+  const dot = e.target.closest('.cdot');
+  $$('.colors.pop').forEach(p => { if (!(dot && p.id === dot.dataset.pop) && !p.contains(e.target)) p.hidden = true; });
+  if (dot) { const p = document.getElementById(dot.dataset.pop); p.hidden = !p.hidden; }
+});
+
 let addColor = '';
-$('#addColors').addEventListener('click', e => { const b = e.target.closest('[data-color]'); if (b) { addColor = b.dataset.color; swatches($('#addColors'), addColor, true); } });
+$('#addColors').addEventListener('click', e => { const b = e.target.closest('[data-color]'); if (b) { addColor = b.dataset.color; colorPick('addColors', addColor); } });
 
 function openAdd(packId, type, files) {
   if (!S.packs.length) { toast('Hãy tạo một pack trước nhé 🌱'); openPack(null); return; }
   $('#addForm').reset();
   fillPackSelect($('#addPack'), packId || store.get('lastPack', ''));
   addColor = '';
-  swatches($('#addColors'), addColor, true);
+  colorPick('addColors', addColor);
   pending = [];
   setAddType(type || 'file');
   if (files) addFiles(files);
@@ -687,7 +703,7 @@ $('#addForm').addEventListener('submit', async e => {
 
 /* ───────────────────────── Sửa / xóa tài liệu ───────────────────────── */
 let editId = null, edColor = '';
-$('#edColors').addEventListener('click', e => { const b = e.target.closest('[data-color]'); if (b) { edColor = b.dataset.color; swatches($('#edColors'), edColor, true); } });
+$('#edColors').addEventListener('click', e => { const b = e.target.closest('[data-color]'); if (b) { edColor = b.dataset.color; colorPick('edColors', edColor); } });
 function openEdit(id) {
   const it = S.items.find(i => i.id === id);
   if (!it) return;
@@ -699,7 +715,7 @@ function openEdit(id) {
   $('#edTags').value = it.tags || '';
   $('#edPin').checked = !!it.pinned;
   edColor = it.color || '';
-  swatches($('#edColors'), edColor, true);
+  colorPick('edColors', edColor);
   fillPackSelect($('#edPack'), it.packId);
   $$('#editDlg .only-link').forEach(x => { x.hidden = it.type !== 'link'; });
   const href = openUrl(it);
