@@ -45,7 +45,7 @@ const baseName = n => String(n || '').replace(/\.[^.]+$/, '');
 let busyN = 0;
 function busy(d) { busyN = Math.max(0, busyN + d); $('#busy').hidden = busyN === 0; }
 
-async function api(action, body) {
+async function api(action, body, mut) {
   if (!SCRIPT_URL || SCRIPT_URL.includes('PASTE_')) {
     throw new Error('Trang chưa được nối với máy chủ: hãy dán URL Apps Script vào SCRIPT_URL trong library/app.js');
   }
@@ -65,10 +65,32 @@ async function api(action, body) {
       const old = j.auth === false; // máy chủ bản cũ vẫn đòi mã truy cập
       throw new Error(old ? 'Máy chủ đang chạy bản cũ (còn đòi mã). Cô dán Library.gs mới vào Apps Script rồi Deploy → New version.' : (j.error || 'Lỗi máy chủ'));
     }
-    if (j.data) setData(j.data);
+    // Đang có thay đổi khác chờ lưu → bỏ qua dữ liệu trả về (đã cũ), chờ lần lưu cuối cùng
+    if (j.data && pendingN <= (mut ? 1 : 0)) setData(j.data);
     return j;
   } finally { busy(-1); }
 }
+
+/* ───── Lưu nền: đổi trên màn hình NGAY (local), rồi mới gửi máy chủ ─────
+   Lỗi → báo đỏ và tải lại dữ liệu thật từ máy chủ. */
+let pendingN = 0;
+async function mutate(action, body, local, okMsg) {
+  if (local) { local(); render(); }
+  if (okMsg) toast(okMsg);
+  pendingN++;
+  try {
+    return await api(action, body, true);
+  } catch (er) {
+    toast('Chưa lưu được: ' + er.message + ' — đã tải lại dữ liệu.', true);
+    if (pendingN === 1) setTimeout(refresh, 0);
+    throw er;
+  } finally {
+    pendingN--;
+  }
+}
+const isTmp = id => String(id || '').startsWith('tmp');
+const tmpId = () => 'tmp' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+const normTags = v => { const seen = {}; return String(v || '').split(/[,#\n]/).map(x => x.trim().replace(/\s+/g, ' ')).filter(x => { const k = x.toLowerCase(); if (!x || seen[k]) return false; seen[k] = 1; return true; }).join(', '); };
 
 function setData(d) {
   S.packs = d.packs || [];
@@ -81,6 +103,7 @@ function setData(d) {
 }
 
 function refresh() {
+  if (pendingN > 0) return Promise.resolve(); // đang lưu → đợi lưu xong, dữ liệu mới sẽ tự về
   return api('list').catch(er => toast(er.message, true));
 }
 
@@ -286,7 +309,7 @@ function cardHTML(it, tokens) {
   const nLike = (it.likes || []).length, nCmt = commentsOf(it.id).length;
   const badges = (nLike ? '<span class="bdg">❤️' + nLike + '</span>' : '') + (nCmt ? '<span class="bdg">💬' + nCmt + '</span>' : '');
   const sc = sched ? schedOf(it) : null;
-  return '<article class="card' + (isOpen(it, tokens) ? ' open' : '') + (it.pinned ? ' pinned' : '') + (color ? ' colored' : '') + (sched ? ' schedule' : '') + '" data-id="' + esc(it.id) + '"' + color + '>' +
+  return '<article class="card' + (isOpen(it, tokens) ? ' open' : '') + (it.pinned ? ' pinned' : '') + (color ? ' colored' : '') + (sched ? ' schedule' : '') + (isTmp(it.id) ? ' pending' : '') + '" data-id="' + esc(it.id) + '"' + color + '>' +
     '<div class="row" data-act="toggle" title="Bấm để xem thêm / thu gọn">' +
       '<span class="ico">' + k.icon + '</span>' + ttl + badges +
       '<span class="sub">' + (sched ? 'tự động' : esc(it.by) + ' · ' + fmtShort(it.createdAt)) + '</span>' +
@@ -398,6 +421,7 @@ document.addEventListener('click', e => {
   if (!a || !$('#board').contains(a)) return;
   const card = a.closest('.card');
   const col = a.closest('.col');
+  if (card && isTmp(card.dataset.id) && /^(edit|like|sendCmt|delCmt)$/.test(a.dataset.act)) { toast('Bài đang được lưu, chờ 1–2 giây nhé ⏳'); return; }
   switch (a.dataset.act) {
     case 'toggle': {
       if (t.closest('a')) return; // bấm tiêu đề = mở file
@@ -421,21 +445,41 @@ document.addEventListener('click', e => {
     case 'like': {
       const it = S.items.find(i => i.id === card.dataset.id);
       if (!it) break;
-      const l = it.likes || [];
-      it.likes = l.includes(S.who) ? l.filter(x => x !== S.who) : l.concat(S.who); // hiện ngay, máy chủ ghi sau
-      render();
-      api('toggleLike', { id: it.id }).catch(er => { toast(er.message, true); refresh(); });
+      mutate('toggleLike', { id: it.id }, () => {
+        const l = it.likes || [];
+        it.likes = l.includes(S.who) ? l.filter(x => x !== S.who) : l.concat(S.who);
+      }).catch(() => {});
       break;
     }
     case 'sendCmt': sendComment(card.dataset.id); break;
-    case 'delCmt':
-      if (confirm('Xóa bình luận này?')) api('deleteComment', { id: a.dataset.cid }).catch(er => toast(er.message, true));
+    case 'delCmt': {
+      const cid = a.dataset.cid;
+      if (isTmp(cid)) { toast('Bình luận đang được lưu, chờ 1–2 giây nhé ⏳'); break; }
+      if (confirm('Xóa bình luận này?')) mutate('deleteComment', { id: cid }, () => { S.comments = S.comments.filter(c => c.id !== cid); }).catch(() => {});
       break;
+    }
     case 'sync':
       a.disabled = true;
       api('syncSchedule', {}).then(j => toast(j.msg || 'Đã đồng bộ lịch ✅')).catch(er => { a.disabled = false; toast(er.message, true); });
       break;
   }
+});
+
+/* ───── Nhấn đôi vào bài → mở hộp sửa; nhấn đôi vào đầu pack → sửa pack ───── */
+$('#board').addEventListener('dblclick', e => {
+  const t = e.target;
+  if (t.closest('a, button, textarea, input, .social')) return; // tiêu đề là link, nút, ô bình luận → giữ nguyên
+  try { window.getSelection().removeAllRanges(); } catch (_) {}
+  const head = t.closest('.col-h');
+  if (head) { openPack(head.closest('.col').dataset.pack); return; }
+  const card = t.closest('.card');
+  if (!card) return;
+  const it = S.items.find(i => i.id === card.dataset.id);
+  if (!it) return;
+  if (isTmp(it.id)) { toast('Bài đang được lưu, chờ 1–2 giây nhé ⏳'); return; }
+  if (it.type === 'schedule') { toast('Lịch tuần lấy tự động từ web Quản lý lớp học — sửa lịch bên đó nhé 📅'); return; }
+  // 2 lần chạm đã mở rồi đóng thẻ → giữ trạng thái như trước khi nhấn đôi
+  openEdit(it.id);
 });
 
 /* ───── Bình luận: nháp được giữ khi bảng vẽ lại; Enter gửi, Shift+Enter xuống dòng ───── */
@@ -445,11 +489,12 @@ async function sendComment(id) {
   setOpen(id, true);
   S.drafts[id] = '';
   try {
-    await api('addComment', { itemId: id, text: text });
+    await mutate('addComment', { itemId: id, text: text }, () => {
+      S.comments = S.comments.concat({ id: tmpId(), itemId: id, by: S.who, text: text, createdAt: new Date().toISOString() });
+    });
   } catch (er) {
-    S.drafts[id] = text;
+    S.drafts[id] = text; // trả lại chữ đã gõ để gửi lại
     render();
-    toast(er.message, true);
   }
 }
 $('#board').addEventListener('input', e => {
@@ -578,6 +623,11 @@ function lockAdd(v) {
   renderFiles();
 }
 
+function tmpItem(o) {
+  return Object.assign({ id: tmpId(), title: '', type: 'note', tags: '', desc: '', fileId: '', url: '', mime: '', size: 0,
+    by: S.who, createdAt: new Date().toISOString(), pinned: false, color: '', likes: [] }, o, { tags: normTags(o.tags) });
+}
+
 $('#addForm').addEventListener('submit', async e => {
   e.preventDefault();
   if (adding) return;
@@ -592,14 +642,20 @@ $('#addForm').addEventListener('submit', async e => {
     if (addType === 'link') {
       const url = $('#addUrl').value.trim();
       if (!/^https?:\/\/\S+$/i.test(url)) throw new Error('Link phải bắt đầu bằng http:// hoặc https://');
-      lockAdd(true);
-      await api('addLink', { packId: packId, url: url, title: title, desc: desc, tags: tags, color: addColor });
-      $('#addDlg').close(); toast('Đã thêm link 🔗');
+      // hiện bài tạm ngay (mờ, "đang lưu"), máy chủ trả về thì thay bằng bài thật
+      const color = addColor;
+      $('#addDlg').close();
+      mutate('addLink', { packId: packId, url: url, title: title, desc: desc, tags: tags, color: color }, () => {
+        S.items = S.items.concat(tmpItem({ packId: packId, type: 'link', url: url, desc: desc, tags: tags, color: color,
+          title: title || url.replace(/^https?:\/\/(www\.)?/i, '').slice(0, 150) }));
+      }, 'Đã thêm link 🔗').catch(() => {});
     } else if (addType === 'note') {
       if (!desc && !title) throw new Error('Ghi chú đang trống');
-      lockAdd(true);
-      await api('addNote', { packId: packId, title: title, desc: desc, tags: tags, color: addColor });
-      $('#addDlg').close(); toast('Đã thêm ghi chú 📝');
+      const color = addColor;
+      $('#addDlg').close();
+      mutate('addNote', { packId: packId, title: title, desc: desc, tags: tags, color: color }, () => {
+        S.items = S.items.concat(tmpItem({ packId: packId, type: 'note', title: title, desc: desc, tags: tags, color: color }));
+      }, 'Đã thêm ghi chú 📝').catch(() => {});
     } else {
       const todo = pending.filter(p => p.st !== 'ok' && p.st !== 'big');
       if (!todo.length) throw new Error(pending.length ? 'Không còn file nào đăng được (file quá 20MB: tải lên Drive rồi dán link).' : 'Chưa chọn file nào');
@@ -662,22 +718,28 @@ $('#editForm').addEventListener('submit', async e => {
     id: editId, title: $('#edTitle').value.trim(), desc: $('#edDesc').value.trim(),
     tags: $('#edTags').value, packId: $('#edPack').value, pinned: $('#edPin').checked, color: edColor,
   };
-  if (it.type === 'link') body.url = $('#edUrl').value.trim();
-  try {
-    await api('updateItem', body);
-    $('#editDlg').close(); toast('Đã lưu ✅');
-  } catch (er) {
-    $('#edErr').textContent = er.message;
+  if (it.type === 'link') {
+    body.url = $('#edUrl').value.trim();
+    if (!/^https?:\/\/\S+$/i.test(body.url)) { $('#edErr').textContent = 'Link phải bắt đầu bằng http:// hoặc https://'; return; }
   }
+  $('#editDlg').close();
+  mutate('updateItem', body, () => {
+    if (body.title) it.title = body.title;
+    it.desc = body.desc; it.tags = normTags(body.tags); it.pinned = body.pinned; it.color = body.color;
+    if (body.url) it.url = body.url;
+    if (S.packs.some(p => p.id === body.packId)) it.packId = body.packId;
+  }, 'Đã lưu ✅').catch(() => {});
 });
 
-$('#edDel').addEventListener('click', async () => {
+$('#edDel').addEventListener('click', () => {
   const it = S.items.find(i => i.id === editId);
   if (!it || !confirm('Xóa "' + titleOf(it) + '"?')) return;
-  try {
-    await api('deleteItem', { id: editId });
-    $('#editDlg').close(); toast('Đã xóa 🗑');
-  } catch (er) { $('#edErr').textContent = er.message; }
+  const id = editId;
+  $('#editDlg').close();
+  mutate('deleteItem', { id: id }, () => {
+    S.items = S.items.filter(i => i.id !== id);
+    S.comments = S.comments.filter(c => c.itemId !== id);
+  }, 'Đã xóa 🗑').catch(() => {});
 });
 
 /* ───────────────────────── Pack ───────────────────────── */
@@ -712,33 +774,47 @@ $('#packForm').addEventListener('submit', async e => {
   e.preventDefault();
   const name = $('#pkName').value.trim();
   if (!name) { $('#pkErr').textContent = 'Chưa nhập tên pack'; return; }
+  if (S.packs.some(p => p.id !== pkId && p.name.toLowerCase() === name.toLowerCase())) { $('#pkErr').textContent = 'Đã có pack tên "' + name + '"'; return; }
+  if (pkId) {
+    const p = S.packs.find(x => x.id === pkId);
+    const emoji = pkEmoji, color = pkColor;
+    $('#packDlg').close();
+    mutate('updatePack', { id: pkId, name: name, emoji: emoji, color: color }, () => {
+      if (p) { p.name = name; p.emoji = emoji; p.color = color; }
+    }, 'Đã lưu pack ✅').catch(() => {});
+    return;
+  }
+  // Pack mới: chờ máy chủ tạo thư mục Drive và cấp mã pack (để thêm bài vào được ngay)
   try {
-    if (pkId) await api('updatePack', { id: pkId, name: name, emoji: pkEmoji, color: pkColor });
-    else await api('createPack', { name: name, emoji: pkEmoji, color: pkColor });
-    $('#packDlg').close(); toast(pkId ? 'Đã lưu pack ✅' : 'Đã tạo pack "' + name + '" 🎉');
+    await api('createPack', { name: name, emoji: pkEmoji, color: pkColor });
+    $('#packDlg').close(); toast('Đã tạo pack "' + name + '" 🎉');
   } catch (er) {
     $('#pkErr').textContent = er.message;
   }
 });
 
-async function movePack(dir) {
+function movePack(dir) {
   const ids = S.packs.map(p => p.id);
   const i = ids.indexOf(pkId), j = i + dir;
   if (i < 0 || j < 0 || j >= ids.length) return;
   ids[i] = ids[j]; ids[j] = pkId;
-  try { await api('orderPacks', { ids: ids }); renderPk(); }
-  catch (er) { $('#pkErr').textContent = er.message; }
+  mutate('orderPacks', { ids: ids }, () => {
+    S.packs = ids.map(id => S.packs.find(p => p.id === id)).filter(Boolean);
+    S.packs.forEach((p, k) => { p.order = k + 1; });
+  }).catch(() => {});
+  renderPk();
 }
 $('#pkLeft').addEventListener('click', () => movePack(-1));
 $('#pkRight').addEventListener('click', () => movePack(1));
 
 $('#pkDel').addEventListener('click', async () => {
   const p = S.packs.find(x => x.id === pkId);
-  if (!p || !confirm('Xóa pack "' + p.name + '"? (Chỉ xóa được khi pack đã trống)')) return;
-  try {
-    await api('deletePack', { id: pkId });
-    $('#packDlg').close(); toast('Đã xóa pack 🗑');
-  } catch (er) { $('#pkErr').textContent = er.message; }
+  if (!p) return;
+  if (S.items.some(i => i.packId === p.id)) { $('#pkErr').textContent = 'Pack còn tài liệu. Hãy xóa hoặc chuyển hết tài liệu sang pack khác trước.'; return; }
+  if (!confirm('Xóa pack "' + p.name + '"?')) return;
+  const id = pkId;
+  $('#packDlg').close();
+  mutate('deletePack', { id: id }, () => { S.packs = S.packs.filter(x => x.id !== id); }, 'Đã xóa pack 🗑').catch(() => {});
 });
 
 /* ───────────────────────── Thông báo nhỏ ───────────────────────── */

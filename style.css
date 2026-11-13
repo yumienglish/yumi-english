@@ -81,7 +81,10 @@ textarea{resize:vertical}
 .empty{text-align:center;color:var(--muted);font-size:16px;padding:30px 16px}
 
 /* Thẻ gọn: 1 dòng; bấm để mở */
-.card{background:var(--card);border-radius:11px;box-shadow:0 1px 3px rgba(80,40,20,.08);overflow:hidden}
+.card{background:var(--card);border-radius:11px;box-shadow:0 1px 3px rgba(80,40,20,.08);overflow:hidden;touch-action:manipulation}
+.card.pending{opacity:.55}
+.card.pending .row .sub::after{content:' · đang lưu…'}
+.col-h{touch-action:manipulation}
 .card.pinned{box-shadow:0 0 0 1.5px var(--peach) inset,0 1px 3px rgba(80,40,20,.08)}
 .card.colored{background:var(--pc)}
 .card.colored .acts{border-top-color:rgba(0,0,0,.08)}
