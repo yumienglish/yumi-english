@@ -6,7 +6,7 @@
 <meta name="robots" content="noindex, nofollow">
 <title>Thư viện Yumi</title>
 <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="style.css?v=20261113b">
+<link rel="stylesheet" href="style.css?v=20261114a">
 </head>
 <body>
 <div id="busy" class="busy" hidden></div>
@@ -50,68 +50,42 @@
   <button id="fab" class="fab" type="button">＋ Thêm</button>
 </div>
 
-<!-- Thêm tài liệu -->
-<dialog id="addDlg" class="dlg big">
-  <form id="addForm">
-    <div class="dlg-h">
-      <h2>＋ Thêm vào thư viện</h2>
-      <div class="cpick">
-        <button type="button" class="cdot" data-pop="addColors" title="Màu bài (bấm để chọn)"></button>
-        <div class="colors pop" id="addColors" hidden></div>
-      </div>
-    </div>
-    <div class="seg" id="addType">
-      <button type="button" data-t="file">📄 File</button>
-      <button type="button" data-t="link">🔗 Link</button>
-      <button type="button" data-t="note">📝 Ghi chú</button>
-    </div>
-    <label>Pack <select id="addPack"></select></label>
-    <div class="only-file">
-      <label class="drop" id="drop">
-        <input type="file" id="fileIn" multiple hidden>
-        <span>📥 Kéo thả file vào đây hoặc <u>bấm để chọn</u></span>
-        <small>Chọn được nhiều file. Tối đa 20MB/file — file lớn hơn: tải lên Drive rồi dán link.</small>
-      </label>
-      <ul id="fileList" class="files"></ul>
-    </div>
-    <label class="only-link">Link <input id="addUrl" type="url" placeholder="https://…"></label>
-    <label>Tiêu đề <input id="addTitle" maxlength="150"></label>
-    <label class="grow">Mô tả / ghi chú <textarea id="addDesc" maxlength="20000"></textarea></label>
-    <label>Tag <input id="addTags" placeholder="vd: listening, unit 3, IE504"></label>
-    <p class="err" id="addErr"></p>
-    <div class="btns">
-      <button type="button" class="ghost" data-close>Hủy</button>
-      <button type="submit" class="primary" id="addGo">Đăng</button>
-    </div>
-  </form>
-</dialog>
-
-<!-- Sửa tài liệu -->
-<dialog id="editDlg" class="dlg big">
-  <form id="editForm">
-    <div class="dlg-h">
-      <h2>✏️ Sửa tài liệu</h2>
-      <div class="cpick">
-        <button type="button" class="cdot" data-pop="edColors" title="Màu bài (bấm để chọn)"></button>
-        <div class="colors pop" id="edColors" hidden></div>
-      </div>
-    </div>
-    <label>Tiêu đề <input id="edTitle" maxlength="150"></label>
-    <p class="muted small hint">Mẹo: <code>{MONTH}</code> tự đổi thành tháng hiện tại (vd <code>Task {MONTH}</code>). Ghi lớp ở đầu như <code>PET01 · Unit 6 Kahoot</code> để hiện nhãn màu lớp.</p>
-    <label class="only-link">Link <input id="edUrl" type="url"></label>
-    <label class="grow">Mô tả / ghi chú <textarea id="edDesc" maxlength="20000"></textarea></label>
-    <div class="two">
-      <label>Tag <input id="edTags"></label>
-      <label>Chuyển sang pack <select id="edPack"></select></label>
-    </div>
-    <label class="check"><input type="checkbox" id="edPin"> 📌 Ghim lên đầu pack</label>
-    <p class="muted small" id="edInfo"></p>
-    <p class="err" id="edErr"></p>
-    <div class="btns">
-      <button type="button" class="danger" id="edDel">🗑 Xóa</button>
+<!-- Thêm / sửa bài (giống Padlet): 1 hộp dùng chung -->
+<dialog id="postDlg" class="dlg post">
+  <form id="postForm">
+    <div class="ptop">
+      <button type="button" class="pdel" id="pDel" title="Xóa bài này">🗑 Xóa</button>
       <span class="sp"></span>
-      <button type="button" class="ghost" data-close>Hủy</button>
-      <button type="submit" class="primary">Lưu</button>
+      <button type="button" class="pcancel" data-close>Hủy</button>
+      <button type="submit" class="pgo" id="pGo">Cập nhật</button>
+    </div>
+    <div class="pbody" id="pBody">
+      <input id="pTitle" class="ptitle" autofocus maxlength="150" placeholder="Tiêu đề" autocomplete="off"
+        title="Mẹo: {MONTH} tự đổi thành tháng hiện tại (vd Task {MONTH}). Ghi lớp ở đầu như PET01 · Unit 6 Kahoot để hiện nhãn màu lớp.">
+      <div class="attach" id="pAttach">
+        <div class="att-pick" id="attPick">
+          <label class="att-btn" title="Tải file lên (tối đa 20MB/file)"><input type="file" id="fileIn" multiple hidden>⬆️ Tải lên</label>
+          <button type="button" class="att-btn" id="attLinkBtn">🔗 Dán link</button>
+          <span class="att-hint">hoặc kéo thả file vào đây</span>
+        </div>
+        <div class="att-link" id="attLink" hidden>
+          <span>🔗</span><input id="pUrl" type="url" placeholder="Dán link https://…" autocomplete="off">
+          <button type="button" class="icon" id="attLinkX" title="Bỏ link">✕</button>
+        </div>
+        <div class="att-cur" id="attCur" hidden></div>
+        <ul class="files" id="fileList"></ul>
+      </div>
+      <textarea id="pDesc" class="pdesc" maxlength="20000" placeholder="Viết gì đó…"></textarea>
+      <p class="err" id="pErr"></p>
+    </div>
+    <div class="pfoot">
+      <div class="cpick up">
+        <button type="button" class="cbtn" data-pop="pColors" title="Màu bài"><span class="cdot"></span><span id="pColorName">Trắng</span> ▾</button>
+        <div class="colors pop" id="pColors" hidden></div>
+      </div>
+      <label class="fsel" title="Pack">§ <select id="pPack"></select></label>
+      <label class="fpin" title="Ghim lên đầu pack"><input type="checkbox" id="pPin"> 📌 Ghim</label>
+      <label class="fsel ftagl" title="Tag (cách nhau dấu phẩy)">#<input id="pTags" class="ftags" placeholder="tag, cách nhau dấu phẩy" autocomplete="off"></label>
     </div>
   </form>
 </dialog>
@@ -140,6 +114,6 @@
 </dialog>
 
 <div id="toast" class="toast" hidden></div>
-<script src="app.js?v=20261113b"></script>
+<script src="app.js?v=20261114a"></script>
 </body>
 </html>

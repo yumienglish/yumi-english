@@ -97,6 +97,7 @@ function setData(d) {
   S.items = d.items || [];
   S.comments = d.comments || [];
   S.classes = d.classes || {};
+  S.ver = d.ver || 1;
   S.lastSync = Date.now();
   store.set('cache', d);
   render();
@@ -542,86 +543,130 @@ document.addEventListener('visibilitychange', () => {
   if (!document.hidden && S.who && !$('#app').hidden && Date.now() - S.lastSync > 60000) refresh();
 });
 
-/* ───────────────────────── Thêm tài liệu ───────────────────────── */
-let addType = 'file', pending = [], adding = false;
+/* ───────────────────────── Thêm / sửa bài: 1 hộp dùng chung (kiểu Padlet) ───────────────────────── */
+// P.att: 'none' (không đính kèm → ghi chú) | 'link' | 'files' (file mới chờ tải) | 'cur' (giữ file đang có)
+const P = { mode: 'add', id: null, color: '', att: 'none', origAtt: 'none', busy: false };
+let pending = []; // file chờ tải: { file, st: ''|'up'|'ok'|'err'|'big', msg }
 
 function fillPackSelect(sel, selected) {
   sel.innerHTML = S.packs.map(p => '<option value="' + esc(p.id) + '">' + esc(p.emoji + ' ' + p.name) + '</option>').join('');
   sel.value = S.packs.some(p => p.id === selected) ? selected : (S.packs[0] && S.packs[0].id) || '';
 }
 
-function setAddType(t) {
-  addType = t;
-  $$('#addType [data-t]').forEach(b => b.classList.toggle('on', b.dataset.t === t));
-  $$('#addDlg .only-file').forEach(x => { x.hidden = t !== 'file'; });
-  $$('#addDlg .only-link').forEach(x => { x.hidden = t !== 'link'; });
-  $('#addTitle').placeholder = t === 'file' ? 'Để trống = dùng tên file' : t === 'link' ? 'Để trống = dùng địa chỉ link' : 'Không bắt buộc';
-  $('#addGo').textContent = t === 'file' ? 'Tải lên' : 'Đăng';
-}
-
-/** Vẽ các ô màu vào el. allowNone = có ô "Không màu" (bài trắng). */
+/** Vẽ các ô màu vào el. allowNone = có ô "Trắng" (bài không màu). */
 function swatches(el, selected, allowNone) {
-  const list = (allowNone ? [['', 'Không màu']] : []).concat(PALETTE);
+  const list = (allowNone ? [['', 'Trắng']] : []).concat(PALETTE);
   el.innerHTML = list.map(([c, n]) => '<button type="button" class="' + (c === selected ? 'on' : '') + (c ? '' : ' none') +
     '" data-color="' + c + '" style="background:' + (c || '#fff') + '" title="' + n + '"></button>').join('');
 }
 
-/** Màu bài: 1 chấm nhỏ trên đầu hộp; bấm chấm mới hiện bảng màu, chọn xong tự đóng. */
+/** Màu bài: nút "● Tên màu ▾" ở thanh dưới; bấm mới hiện bảng màu, chọn xong tự đóng. */
 function colorPick(popId, val) {
   const pop = document.getElementById(popId);
   swatches(pop, val, true);
-  const dot = pop.parentNode.querySelector('.cdot');
+  const box = pop.parentNode;
+  const dot = box.querySelector('.cdot');
   dot.style.background = val || '#fff';
   dot.classList.toggle('none', !val);
-  const name = (PALETTE.find(p => p[0] === val) || [0, 'Không màu'])[1];
-  dot.title = 'Màu bài: ' + name + ' (bấm để đổi)';
+  const name = (PALETTE.find(p => p[0] === val) || [0, 'Trắng'])[1];
+  const lbl = box.querySelector('#pColorName');
+  if (lbl) lbl.textContent = name;
   pop.hidden = true;
 }
 document.addEventListener('click', e => {
-  const dot = e.target.closest('.cdot');
-  $$('.colors.pop').forEach(p => { if (!(dot && p.id === dot.dataset.pop) && !p.contains(e.target)) p.hidden = true; });
-  if (dot) { const p = document.getElementById(dot.dataset.pop); p.hidden = !p.hidden; }
+  const btn = e.target.closest('[data-pop]');
+  $$('.colors.pop').forEach(p => { if (!(btn && p.id === btn.dataset.pop) && !p.contains(e.target)) p.hidden = true; });
+  if (btn) { const p = document.getElementById(btn.dataset.pop); p.hidden = !p.hidden; }
 });
+$('#pColors').addEventListener('click', e => { const b = e.target.closest('[data-color]'); if (b) { P.color = b.dataset.color; colorPick('pColors', P.color); } });
 
-let addColor = '';
-$('#addColors').addEventListener('click', e => { const b = e.target.closest('[data-color]'); if (b) { addColor = b.dataset.color; colorPick('addColors', addColor); } });
+// Máy chủ bản mới (ver ≥ 2) mới cho đổi đính kèm khi SỬA bài (gắn link vào ghi chú, thay file…)
+const canEditAttach = () => P.mode === 'add' || (S.ver || 1) >= 2;
 
-function openAdd(packId, type, files) {
-  if (!S.packs.length) { toast('Hãy tạo một pack trước nhé 🌱'); openPack(null); return; }
-  $('#addForm').reset();
-  fillPackSelect($('#addPack'), packId || store.get('lastPack', ''));
-  addColor = '';
-  colorPick('addColors', addColor);
-  pending = [];
-  setAddType(type || 'file');
-  if (files) addFiles(files);
+function renderAttach() {
+  const it = P.mode === 'edit' ? S.items.find(i => i.id === P.id) : null;
+  const can = canEditAttach();
+  $('#attPick').hidden = !(P.att === 'none' && can);
+  $('#attLink').hidden = P.att !== 'link';
+  $('#attCur').hidden = P.att !== 'cur';
+  $('#pAttach').hidden = P.att === 'none' && !can;
+  if (P.att === 'cur' && it) {
+    const k = kindOf(it), href = openUrl(it);
+    $('#attCur').innerHTML = '<span>' + k.icon + '</span>' +
+      '<a href="' + esc(href) + '" target="_blank" rel="noopener" title="Mở file">' + esc(titleOf(it)) + '</a>' +
+      '<span class="s">' + k.label + (it.size ? ' · ' + fmtSize(it.size) : '') + '</span>' +
+      (can ? '<button type="button" class="icon" id="attCurX" title="Gỡ file (để thay file khác hoặc dán link)">✕</button>' : '');
+  }
+  $('#attLinkX').hidden = P.mode === 'edit' && !can; // máy chủ cũ: chỉ sửa được địa chỉ link
+  $('#pTitle').placeholder = P.att === 'files' ? 'Tiêu đề (để trống = tên file)' : P.att === 'link' ? 'Tiêu đề (để trống = địa chỉ link)' : 'Tiêu đề';
   renderFiles();
-  $('#addErr').textContent = '';
-  $('#addDlg').showModal();
 }
 
 function addFiles(list) {
-  Array.from(list || []).forEach(f => pending.push({ file: f, st: f.size > MAX_BYTES ? 'big' : '', msg: '' }));
-  renderFiles();
+  if (P.busy) return;
+  if (!canEditAttach()) { toast('Máy chủ chưa cập nhật nên chưa thay file được khi sửa bài.', true); return; }
+  let arr = Array.from(list || []);
+  if (P.mode === 'edit') { arr = arr.slice(0, 1); pending = []; } // sửa bài: thay bằng 1 file
+  arr.forEach(f => pending.push({ file: f, st: f.size > MAX_BYTES ? 'big' : '', msg: '' }));
+  if (pending.length) P.att = 'files';
+  renderAttach();
 }
 
 function renderFiles() {
   const icon = { '': '📄', up: '⏳', ok: '✅', err: '❌', big: '⚠️' };
-  $('#fileList').innerHTML = pending.map((p, i) =>
+  $('#fileList').hidden = P.att !== 'files';
+  $('#fileList').innerHTML = P.att !== 'files' ? '' : pending.map((p, i) =>
     '<li><span>' + icon[p.st] + '</span><span class="n" title="' + esc(p.file.name) + '">' + esc(p.file.name) + '</span>' +
     '<span class="s">' + (p.st === 'big' ? 'quá 20MB' : p.st === 'err' ? esc(p.msg) : p.st === 'up' ? 'đang tải…' : fmtSize(p.file.size)) + '</span>' +
-    (adding || p.st === 'ok' ? '' : '<button type="button" class="icon" data-rm="' + i + '" title="Bỏ">✕</button>') + '</li>'
+    (P.busy || p.st === 'ok' ? '' : '<button type="button" class="icon" data-rm="' + i + '" title="Bỏ">✕</button>') + '</li>'
   ).join('');
 }
 
-$('#addType').addEventListener('click', e => { const b = e.target.closest('[data-t]'); if (b && !adding) setAddType(b.dataset.t); });
-$('#fileList').addEventListener('click', e => { const b = e.target.closest('[data-rm]'); if (b && !adding) { pending.splice(+b.dataset.rm, 1); renderFiles(); } });
+$('#fileList').addEventListener('click', e => {
+  const b = e.target.closest('[data-rm]');
+  if (!b || P.busy) return;
+  pending.splice(+b.dataset.rm, 1);
+  if (!pending.length) P.att = P.origAtt === 'cur' ? 'cur' : 'none';
+  renderAttach();
+});
 $('#fileIn').addEventListener('change', e => { addFiles(e.target.files); e.target.value = ''; });
-const drop = $('#drop');
-drop.addEventListener('dragover', e => { if (hasFiles(e)) { e.preventDefault(); drop.classList.add('drag'); } });
-drop.addEventListener('dragleave', () => drop.classList.remove('drag'));
-drop.addEventListener('drop', e => { e.preventDefault(); drop.classList.remove('drag'); if (!adding) addFiles(e.dataTransfer.files); });
-$('#addDlg').addEventListener('cancel', e => { if (adding) e.preventDefault(); });
+$('#attLinkBtn').addEventListener('click', () => { P.att = 'link'; renderAttach(); setTimeout(() => $('#pUrl').focus(), 0); });
+$('#attLinkX').addEventListener('click', () => { P.att = 'none'; $('#pUrl').value = ''; renderAttach(); });
+$('#attCur').addEventListener('click', e => { if (e.target.closest('#attCurX')) { P.att = 'none'; renderAttach(); } });
+// Kéo thả file vào hộp
+const pBody = $('#pBody');
+pBody.addEventListener('dragover', e => { if (hasFiles(e)) { e.preventDefault(); $('#attPick').classList.add('drag'); } });
+pBody.addEventListener('dragleave', e => { if (!pBody.contains(e.relatedTarget)) $('#attPick').classList.remove('drag'); });
+pBody.addEventListener('drop', e => { if (!hasFiles(e)) return; e.preventDefault(); $('#attPick').classList.remove('drag'); addFiles(e.dataTransfer.files); });
+$('#postDlg').addEventListener('cancel', e => { if (P.busy) e.preventDefault(); });
+
+function openPost(mode, o) {
+  o = o || {};
+  if (!S.packs.length) { toast('Hãy tạo một pack trước nhé 🌱'); openPack(null); return; }
+  const it = mode === 'edit' ? S.items.find(i => i.id === o.id) : null;
+  if (mode === 'edit' && !it) return;
+  P.mode = mode; P.id = it ? it.id : null; P.busy = false; pending = [];
+  $('#postForm').reset();
+  $('#pTitle').value = it ? it.title || '' : '';
+  $('#pDesc').value = it ? it.desc || '' : '';
+  $('#pTags').value = it ? it.tags || '' : '';
+  $('#pPin').checked = !!(it && it.pinned);
+  $('#pUrl').value = it && it.type === 'link' ? it.url || '' : '';
+  fillPackSelect($('#pPack'), it ? it.packId : (o.packId || store.get('lastPack', '')));
+  P.color = it ? it.color || '' : '';
+  colorPick('pColors', P.color);
+  P.att = !it ? 'none' : it.type === 'file' ? 'cur' : it.type === 'link' ? 'link' : 'none';
+  P.origAtt = P.att;
+  $('#pDel').hidden = mode !== 'edit';
+  $('#pGo').textContent = mode === 'edit' ? 'Cập nhật' : 'Đăng';
+  $('#pGo').disabled = false;
+  $('#pErr').textContent = '';
+  if (o.files && o.files.length) addFiles(o.files); else renderAttach();
+  $('#postDlg').showModal();
+  if (mode === 'add') setTimeout(() => $('#pTitle').focus(), 30);
+}
+function openAdd(packId, type, files) { openPost('add', { packId: packId, files: files }); }
+function openEdit(id) { openPost('edit', { id: id }); }
 
 function toB64(file) {
   return new Promise((res, rej) => {
@@ -632,10 +677,10 @@ function toB64(file) {
   });
 }
 
-function lockAdd(v) {
-  adding = v;
-  $('#addGo').disabled = v;
-  $$('#addDlg [data-close]').forEach(b => { b.disabled = v; });
+function lockPost(v) {
+  P.busy = v;
+  $('#pGo').disabled = v;
+  $$('#postDlg [data-close], #pDel').forEach(b => { b.disabled = v; });
   renderFiles();
 }
 
@@ -644,114 +689,93 @@ function tmpItem(o) {
     by: S.who, createdAt: new Date().toISOString(), pinned: false, color: '', likes: [] }, o, { tags: normTags(o.tags) });
 }
 
-$('#addForm').addEventListener('submit', async e => {
+$('#postForm').addEventListener('submit', e => {
   e.preventDefault();
-  if (adding) return;
-  const err = $('#addErr');
-  err.textContent = '';
-  const packId = $('#addPack').value;
-  const title = $('#addTitle').value.trim();
-  const desc = $('#addDesc').value.trim();
-  const tags = $('#addTags').value;
-  store.set('lastPack', packId);
-  try {
-    if (addType === 'link') {
-      const url = $('#addUrl').value.trim();
-      if (!/^https?:\/\/\S+$/i.test(url)) throw new Error('Link phải bắt đầu bằng http:// hoặc https://');
-      // hiện bài tạm ngay (mờ, "đang lưu"), máy chủ trả về thì thay bằng bài thật
-      const color = addColor;
-      $('#addDlg').close();
-      mutate('addLink', { packId: packId, url: url, title: title, desc: desc, tags: tags, color: color }, () => {
-        S.items = S.items.concat(tmpItem({ packId: packId, type: 'link', url: url, desc: desc, tags: tags, color: color,
-          title: title || url.replace(/^https?:\/\/(www\.)?/i, '').slice(0, 150) }));
-      }, 'Đã thêm link 🔗').catch(() => {});
-    } else if (addType === 'note') {
-      if (!desc && !title) throw new Error('Ghi chú đang trống');
-      const color = addColor;
-      $('#addDlg').close();
-      mutate('addNote', { packId: packId, title: title, desc: desc, tags: tags, color: color }, () => {
-        S.items = S.items.concat(tmpItem({ packId: packId, type: 'note', title: title, desc: desc, tags: tags, color: color }));
-      }, 'Đã thêm ghi chú 📝').catch(() => {});
-    } else {
-      const todo = pending.filter(p => p.st !== 'ok' && p.st !== 'big');
-      if (!todo.length) throw new Error(pending.length ? 'Không còn file nào đăng được (file quá 20MB: tải lên Drive rồi dán link).' : 'Chưa chọn file nào');
-      lockAdd(true);
-      const multi = pending.length > 1;
-      let okN = 0;
-      for (const p of todo) {
-        p.st = 'up'; p.msg = ''; renderFiles();
-        try {
-          const b64 = await toB64(p.file);
-          const t = !multi ? title : (title ? title + ' – ' + baseName(p.file.name) : '');
-          await api('upload', { packId: packId, name: p.file.name, mime: p.file.type, b64: b64, title: t, desc: desc, tags: tags, color: addColor });
-          p.st = 'ok'; okN++;
-        } catch (er) {
-          p.st = 'err'; p.msg = er.message;
-        }
-        renderFiles();
-      }
-      if (pending.every(p => p.st === 'ok')) { $('#addDlg').close(); toast('Đã tải lên ' + okN + ' file 🎉'); }
-      else {
-        if (okN) toast('Đã tải lên ' + okN + ' file');
-        err.textContent = 'Còn file chưa đăng được (❌/⚠️). Bấm "Tải lên" để thử lại, hoặc ✕ để bỏ.';
-      }
-    }
-  } catch (er) {
-    err.textContent = er.message;
-  } finally { lockAdd(false); }
+  if (P.busy) return;
+  $('#pErr').textContent = '';
+  const f = {
+    packId: $('#pPack').value, title: $('#pTitle').value.trim(), desc: $('#pDesc').value.trim(),
+    tags: $('#pTags').value, color: P.color, pinned: $('#pPin').checked,
+  };
+  const url = $('#pUrl').value.trim();
+  if (P.att === 'link' && !/^https?:\/\/\S+$/i.test(url)) { $('#pErr').textContent = 'Link phải bắt đầu bằng http:// hoặc https://'; $('#pUrl').focus(); return; }
+  store.set('lastPack', f.packId);
+  if (P.mode === 'add') submitAdd(f, url); else submitEdit(f, url);
 });
 
-/* ───────────────────────── Sửa / xóa tài liệu ───────────────────────── */
-let editId = null, edColor = '';
-$('#edColors').addEventListener('click', e => { const b = e.target.closest('[data-color]'); if (b) { edColor = b.dataset.color; colorPick('edColors', edColor); } });
-function openEdit(id) {
-  const it = S.items.find(i => i.id === id);
-  if (!it) return;
-  editId = id;
-  const k = kindOf(it);
-  $('#edTitle').value = it.title || '';
-  $('#edUrl').value = it.url || '';
-  $('#edDesc').value = it.desc || '';
-  $('#edTags').value = it.tags || '';
-  $('#edPin').checked = !!it.pinned;
-  edColor = it.color || '';
-  colorPick('edColors', edColor);
-  fillPackSelect($('#edPack'), it.packId);
-  $$('#editDlg .only-link').forEach(x => { x.hidden = it.type !== 'link'; });
-  const href = openUrl(it);
-  $('#edInfo').innerHTML = k.icon + ' ' + k.label + (it.size ? ' · ' + fmtSize(it.size) : '') + ' · đăng bởi <b>' + esc(it.by) + '</b> ngày ' + fmtDate(it.createdAt) +
-    (href ? ' · <a href="' + esc(href) + '" target="_blank" rel="noopener">mở ↗</a>' : '') +
-    (it.type === 'file' ? '<br>Xóa: file được chuyển vào Thùng rác Drive (khôi phục được trong 30 ngày).' : '');
-  $('#edErr').textContent = '';
-  $('#editDlg').showModal();
+function submitAdd(f, url) {
+  if (P.att === 'files') return uploadPending(f);
+  if (P.att === 'link') {
+    $('#postDlg').close();
+    mutate('addLink', Object.assign({ url: url }, f), () => {
+      S.items = S.items.concat(tmpItem(Object.assign({}, f, { type: 'link', url: url, title: f.title || url.replace(/^https?:\/\/(www\.)?/i, '').slice(0, 150) })));
+    }, 'Đã đăng 🔗').catch(() => {});
+    return;
+  }
+  if (!f.title && !f.desc) { $('#pErr').textContent = 'Bài đang trống: viết tiêu đề hoặc nội dung, hoặc thêm file / link.'; return; }
+  $('#postDlg').close();
+  mutate('addNote', f, () => { S.items = S.items.concat(tmpItem(Object.assign({}, f, { type: 'note' }))); }, 'Đã đăng 📝').catch(() => {});
 }
 
-$('#editForm').addEventListener('submit', async e => {
-  e.preventDefault();
-  const it = S.items.find(i => i.id === editId);
-  if (!it) return $('#editDlg').close();
-  const body = {
-    id: editId, title: $('#edTitle').value.trim(), desc: $('#edDesc').value.trim(),
-    tags: $('#edTags').value, packId: $('#edPack').value, pinned: $('#edPin').checked, color: edColor,
-  };
-  if (it.type === 'link') {
-    body.url = $('#edUrl').value.trim();
-    if (!/^https?:\/\/\S+$/i.test(body.url)) { $('#edErr').textContent = 'Link phải bắt đầu bằng http:// hoặc https://'; return; }
+async function uploadPending(f) {
+  const todo = pending.filter(p => p.st !== 'ok' && p.st !== 'big');
+  if (!todo.length) { $('#pErr').textContent = 'Không còn file nào đăng được (file quá 20MB: tải lên Drive rồi dán link).'; return; }
+  lockPost(true);
+  const multi = pending.length > 1;
+  let okN = 0;
+  for (const p of todo) {
+    p.st = 'up'; p.msg = ''; renderFiles();
+    try {
+      const b64 = await toB64(p.file);
+      const t = !multi ? f.title : (f.title ? f.title + ' – ' + baseName(p.file.name) : '');
+      await api('upload', Object.assign({}, f, { name: p.file.name, mime: p.file.type, b64: b64, title: t }));
+      p.st = 'ok'; okN++;
+    } catch (er) { p.st = 'err'; p.msg = er.message; }
+    renderFiles();
   }
-  $('#editDlg').close();
-  mutate('updateItem', body, () => {
-    if (body.title) it.title = body.title;
-    it.desc = body.desc; it.tags = normTags(body.tags); it.pinned = body.pinned; it.color = body.color;
-    if (body.url) it.url = body.url;
-    if (S.packs.some(p => p.id === body.packId)) it.packId = body.packId;
-  }, 'Đã lưu ✅').catch(() => {});
-});
+  lockPost(false);
+  if (pending.every(p => p.st === 'ok')) { $('#postDlg').close(); toast('Đã tải lên ' + okN + ' file 🎉'); }
+  else {
+    if (okN) toast('Đã tải lên ' + okN + ' file');
+    $('#pErr').textContent = 'Còn file chưa đăng được (❌/⚠️). Bấm "Đăng" để thử lại, hoặc ✕ để bỏ.';
+  }
+}
 
-$('#edDel').addEventListener('click', () => {
-  const it = S.items.find(i => i.id === editId);
-  if (!it || !confirm('Xóa "' + titleOf(it) + '"?')) return;
-  const id = editId;
-  $('#editDlg').close();
+async function submitEdit(f, url) {
+  const it = S.items.find(i => i.id === P.id);
+  if (!it) { $('#postDlg').close(); return; }
+  const body = Object.assign({ id: it.id }, f);
+  if (P.att === 'files') { // thay bằng file mới: phải chờ máy chủ lưu file
+    const p = pending.find(x => x.st !== 'big');
+    if (!p) { $('#pErr').textContent = 'File quá 20MB. Hãy tải lên Drive rồi dán link.'; return; }
+    lockPost(true); p.st = 'up'; renderFiles();
+    try {
+      const b64 = await toB64(p.file);
+      await api('updateItem', Object.assign(body, { attach: 'file', name: p.file.name, mime: p.file.type, b64: b64 }));
+      lockPost(false);
+      $('#postDlg').close(); toast('Đã cập nhật 📎');
+    } catch (er) { p.st = 'err'; p.msg = er.message; lockPost(false); $('#pErr').textContent = er.message; }
+    return;
+  }
+  const linkNow = P.att === 'link';
+  const removed = P.att === 'none' && P.origAtt !== 'none';
+  if (linkNow) { body.url = url; if (it.type !== 'link') body.attach = 'link'; }
+  else if (removed) body.attach = 'none';
+  $('#postDlg').close();
+  mutate('updateItem', body, () => {
+    if (f.title) it.title = f.title;
+    it.desc = f.desc; it.tags = normTags(f.tags); it.pinned = f.pinned; it.color = f.color;
+    if (S.packs.some(p => p.id === f.packId)) it.packId = f.packId;
+    if (linkNow) { if (it.type !== 'link') it.fileId = ''; it.type = 'link'; it.url = url; it.mime = ''; it.size = 0; }
+    if (removed) { it.type = 'note'; it.url = ''; it.fileId = ''; it.mime = ''; it.size = 0; }
+  }, 'Đã cập nhật ✅').catch(() => {});
+}
+
+$('#pDel').addEventListener('click', () => {
+  const it = S.items.find(i => i.id === P.id);
+  if (!it || P.busy || !confirm('Xóa "' + titleOf(it) + '"?' + (it.type === 'file' ? '\n(File được chuyển vào Thùng rác Drive, khôi phục được trong 30 ngày.)' : ''))) return;
+  const id = it.id;
+  $('#postDlg').close();
   mutate('deleteItem', { id: id }, () => {
     S.items = S.items.filter(i => i.id !== id);
     S.comments = S.comments.filter(c => c.itemId !== id);
@@ -850,7 +874,7 @@ function toast(msg, bad) {
   if (S.who) store.set('who', S.who);
   if (S.who) {
     const c = store.get('cache', null);
-    if (c) { S.packs = c.packs || []; S.items = c.items || []; S.comments = c.comments || []; S.classes = c.classes || {}; }
+    if (c) { S.packs = c.packs || []; S.items = c.items || []; S.comments = c.comments || []; S.classes = c.classes || {}; S.ver = c.ver || 1; }
     showApp();
     refresh();
   } else {
