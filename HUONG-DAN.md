@@ -45,7 +45,7 @@ Trang dạng bảng giống Padlet. Mỗi **pack** là một cột, và cô cùn
 ## B. Đăng trang
 
 Thư viện có trang web riêng ở kho GitHub **yumi-english**, địa chỉ:
-**<https://miathoday.github.io/yumi-english/>**
+**<https://yumienglish.github.io/yumi-english/>**
 
 Sửa thư viện (thư mục `library/`) rồi commit và push `main` lên kho `ielts-homework` như các trang bài tập khác là đủ: máy này đã cài sẵn bước tự động (`.git/hooks/pre-push`) đưa thư mục `library/` sang kho `yumi-english` trong cùng lần push. Sau 1–2 phút trang `yumi-english` tự cập nhật.
 
