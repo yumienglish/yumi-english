@@ -857,6 +857,14 @@ $('#pkDel').addEventListener('click', async () => {
   mutate('deletePack', { id: id }, () => { S.packs = S.packs.filter(x => x.id !== id); }, 'Đã xóa pack 🗑').catch(() => {});
 });
 
+/* ───── Khóa cuộn trang chính khi đang mở hộp thoại (bài đăng, pack) ───── */
+function syncScrollLock() {
+  document.documentElement.classList.toggle('modal-open', !!document.querySelector('dialog[open]'));
+}
+// theo dõi thuộc tính "open" của mọi hộp: mở/đóng bằng nút, phím Esc hay code đều bắt được
+const dlgObserver = new MutationObserver(syncScrollLock);
+$$('dialog').forEach(d => dlgObserver.observe(d, { attributes: true, attributeFilter: ['open'] }));
+
 /* ───────────────────────── Thông báo nhỏ ───────────────────────── */
 let toastTimer;
 function toast(msg, bad) {

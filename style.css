@@ -5,6 +5,10 @@
 }
 *{box-sizing:border-box}
 html,body{margin:0}
+html{scrollbar-gutter:stable}
+/* đang mở hộp thoại → trang chính đứng yên, chỉ nội dung trong hộp cuộn */
+html.modal-open,html.modal-open body{overflow:hidden}
+.dlg,.pbody,.dlg form{overscroll-behavior:contain}
 body{background:var(--bg);color:var(--ink);font-family:Nunito,system-ui,sans-serif;font-size:15.5px;line-height:1.45}
 [hidden]{display:none!important}
 button,input,select,textarea{font:inherit;color:inherit}
