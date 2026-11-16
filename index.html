@@ -6,7 +6,7 @@
 <meta name="robots" content="noindex, nofollow">
 <title>Thư viện Yumi</title>
 <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="style.css?v=20261114b">
+<link rel="stylesheet" href="style.css?v=20261116a">
 </head>
 <body>
 <div id="busy" class="busy" hidden></div>
@@ -45,8 +45,15 @@
     <div class="chips" id="byChips"></div>
     <div class="chips jump" id="jumpChips"></div>
   </nav>
-  <main id="board" class="board"></main>
+  <div id="wall">
+    <section id="notes" class="notes" hidden></section>
+    <main id="board" class="board"></main>
+  </div>
   <p id="empty" class="empty" hidden></p>
+  <div id="fabMenu" class="fab-menu" hidden>
+    <button type="button" data-new="note">🗒️ Ghi chú mới</button>
+    <button type="button" data-new="pack">📦 Pack mới</button>
+  </div>
   <button id="fab" class="fab" type="button">＋ Thêm</button>
 </div>
 
@@ -83,9 +90,9 @@
         <button type="button" class="cbtn" data-pop="pColors" title="Màu bài"><span class="cdot"></span><span id="pColorName">Trắng</span> ▾</button>
         <div class="colors pop" id="pColors" hidden></div>
       </div>
-      <label class="fsel" title="Pack">§ <select id="pPack"></select></label>
-      <label class="fpin" title="Ghim lên đầu pack"><input type="checkbox" id="pPin"> 📌 Ghim</label>
-      <label class="fsel ftagl" title="Tag (cách nhau dấu phẩy)">#<input id="pTags" class="ftags" placeholder="tag, cách nhau dấu phẩy" autocomplete="off"></label>
+      <label class="fsel" id="pPackL" title="Pack">§ <select id="pPack"></select></label>
+      <label class="fpin" id="pPinL" title="Ghim lên đầu pack"><input type="checkbox" id="pPin"> 📌 Ghim</label>
+      <label class="fsel ftagl" id="pTagsL" title="Tag (cách nhau dấu phẩy)">#<input id="pTags" class="ftags" placeholder="tag, cách nhau dấu phẩy" autocomplete="off"></label>
     </div>
   </form>
 </dialog>
@@ -114,6 +121,7 @@
 </dialog>
 
 <div id="toast" class="toast" hidden></div>
-<script src="app.js?v=20261114b"></script>
+<div id="undo" class="undo" hidden><span id="undoMsg"></span><button type="button" id="undoBtn">↶ Hoàn tác</button></div>
+<script src="app.js?v=20261116a"></script>
 </body>
 </html>
