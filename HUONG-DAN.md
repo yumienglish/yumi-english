@@ -34,7 +34,7 @@ Trang dạng bảng giống Padlet. Mỗi **pack** là một cột, và cô cùn
 
 6. **Bật Lịch tuần tự động** (làm 1 lần): trong Apps Script, chọn hàm **`enableScheduleSync`** rồi bấm **▶ Run**. Google sẽ hỏi thêm quyền chạy hẹn giờ, cô bấm **Allow**. Script sẽ:
    - tìm file **Quản lý lớp học** trong Drive và đọc tab `Lop` (màu lớp) và `Lich` (lịch dạy);
-   - tạo bài **📅 Lịch dạy tuần** trong pack *Việc cần làm*, tô màu theo đúng màu lớp;
+   - tạo ghi chú **📅 Lịch dạy tuần** ở hàng Ghi chú trên cùng, tô màu theo đúng màu lớp;
    - tự đồng bộ lại **2 ngày một lần**, khoảng 6–7 giờ sáng.
    Nếu báo *không tìm thấy file*, mở file Quản lý lớp học, copy ID trong link (`/d/`**`ID`**`/edit`) và dán vào `QUAN_LY_SHEET_ID` ở đầu `Library.gs`.
 
@@ -58,8 +58,13 @@ Gửi link cho Linh qua Zalo. Lần đầu vào, mỗi người bấm **Cô** ho
 
 ## Cách dùng
 
-- **Thêm bài:**
-  - Bấm nút **＋ Thêm** góc dưới, hoặc **＋ Thêm** trong từng pack. Chọn 📄 File, 🔗 Link hoặc 📝 Ghi chú.
+- **Nút ＋ Thêm (góc dưới):** chọn **🗒️ Ghi chú mới** hoặc **📦 Pack mới**.
+- **Ghi chú 🗒️:** tờ note đơn giản (tiêu đề, nội dung, màu), không thuộc pack nào.
+  - Các ghi chú xếp thành hàng **trên cùng**, phía trên các pack. Mỗi lần vào trang đều **hiện đầy đủ**, bấm vào dòng tiêu đề để thu gọn khi cần.
+  - Ghi chú vẫn **thả tim, bình luận** được như bài thường. Nhấn đôi (hoặc ✏️ **Sửa**) để sửa.
+  - **Lịch dạy tuần** và **Task {MONTH}** là hai ghi chú có sẵn.
+- **Thêm bài vào pack:**
+  - Bấm **＋ Thêm** trong từng pack. Có tải file thì là bài file, dán link thì là bài link, không đính kèm gì thì là bài chữ.
   - **Kéo thả file thẳng vào một pack** để tải lên nhanh. Có thể chọn nhiều file cùng lúc.
   - Mỗi file tối đa **20MB**. File lớn hơn, ví dụ video, thì tải lên Drive trước rồi dán link.
 - **Xem nhanh:**
@@ -77,6 +82,7 @@ Gửi link cho Linh qua Zalo. Lần đầu vào, mỗi người bấm **Cô** ho
 - **Ghim 📌:** bài ghim luôn nằm đầu pack. Bật bằng cách bấm ✏️ **Sửa** rồi tick **Ghim**.
 - **Màu bài:** chọn một trong 20 màu khi đăng, hoặc đổi màu sau bằng ✏️ **Sửa**. Ô gạch chéo nghĩa là không màu. Pack cũng dùng cùng bảng màu này.
 - **Chuyển pack, sửa, xóa:** bấm ✏️ **Sửa** trên bài. Khi chuyển pack, file trong Drive cũng được chuyển sang thư mục mới.
+- **Xóa nhầm? Hoàn tác trong 10 giây:** xóa bài, ghi chú, bình luận hay pack đều hiện thanh **"Đã xóa … ↶ Hoàn tác"** ở dưới màn hình. Bấm **↶ Hoàn tác** trong 10 giây là mọi thứ trở lại. Hết 10 giây mới thật sự xóa (đóng trang sớm thì vẫn xóa).
 - **Pack:**
   - Các pack xếp thành lưới, **mỗi hàng tối đa 4 pack**. Pack mới thêm vào sẽ nằm ở hàng dưới. Trên điện thoại, các pack xếp dọc.
   - Bấm **＋ Thêm pack mới** (ô cuối cùng) để tạo pack.
