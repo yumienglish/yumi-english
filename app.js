@@ -362,7 +362,7 @@ function cardHTML(it, tokens) {
   const nLike = (it.likes || []).length, nCmt = commentsOf(it.id).length;
   const badges = (nLike ? '<span class="bdg">❤️' + nLike + '</span>' : '') + (nCmt ? '<span class="bdg">💬' + nCmt + '</span>' : '');
   const sc = sched ? schedOf(it) : null;
-  return '<article class="card' + (isOpen(it, tokens) ? ' open' : '') + (it.pinned ? ' pinned' : '') + (color ? ' colored' : '') + (sched ? ' schedule' : '') + (isTmp(it.id) ? ' pending' : '') + '" data-id="' + esc(it.id) + '"' + color + '>' +
+  return '<article class="card' + (isOpen(it, tokens) ? ' open' : '') + (it.pinned ? ' pinned' : '') + (color ? ' colored' : '') + (sched ? ' schedule' : '') + (it.packId === '' ? ' note' : '') + (isTmp(it.id) ? ' pending' : '') + '" data-id="' + esc(it.id) + '"' + color + '>' +
     '<div class="row" data-act="toggle" title="Bấm để xem thêm / thu gọn">' +
       '<span class="ico">' + k.icon + '</span>' + ttl + badges +
       '<span class="sub">' + (sched ? 'tự động' : esc(it.by) + ' · ' + fmtShort(it.createdAt)) + '</span>' +
@@ -401,12 +401,10 @@ function render() {
   const byPack = {};
   items.forEach(it => { if (packIds.has(it.packId)) (byPack[it.packId] = byPack[it.packId] || []).push(it); });
 
-  // Bảng Ghi chú (bài không thuộc pack nào): luôn ở trên cùng, mở sẵn đầy đủ
+  // Ghi chú (bài không thuộc pack nào): đứng đầu lưới, mỗi tờ 1 ô; các pack nối tiếp ngay sau, lấp chỗ trống
   const notes = items.filter(it => it.packId === '' && match(it, tokens, NOTE_PACK)).sort(sortFn);
-  $('#notes').hidden = !notes.length;
-  $('#notes').innerHTML = notes.length ? '<div class="notes-grid">' + notes.map(it => cardHTML(it, tokens)).join('') + '</div>' : '';
 
-  let html = '', total = notes.length;
+  let html = notes.map(it => cardHTML(it, tokens)).join(''), total = notes.length;
   packs.forEach(p => {
     const all = byPack[p.id] || [];
     const list = all.filter(it => match(it, tokens, p)).sort(sortFn);
@@ -714,7 +712,7 @@ function openPost(mode, o) {
   if (note && mode === 'add' && (S.ver || 1) < 3) { toast('Máy chủ chưa cập nhật nên chưa tạo ghi chú được. Cô dán Library.gs mới rồi Deploy → New version.', true); return; }
   if (!note && !S.packs.length) { toast('Hãy tạo một pack trước nhé 🌱'); openPack(null); return; }
   P.mode = mode; P.id = it ? it.id : null; P.busy = false; P.note = note; pending = [];
-  $('#pPackL').hidden = $('#pPinL').hidden = $('#pTagsL').hidden = note;
+  $('#pPackL').hidden = $('#pPinL').hidden = note; // ghi chú: không chọn pack / ghim, nhưng vẫn sửa được tag
   $('#postForm').reset();
   $('#pTitle').value = it ? it.title || '' : '';
   $('#pDesc').value = it ? it.desc || '' : '';
@@ -766,7 +764,7 @@ $('#postForm').addEventListener('submit', e => {
   const it = P.mode === 'edit' ? S.items.find(i => i.id === P.id) : null;
   const f = {
     packId: P.note ? '' : $('#pPack').value, title: $('#pTitle').value.trim(), desc: $('#pDesc').value.trim(),
-    tags: P.note ? (it ? it.tags || '' : '') : $('#pTags').value, color: P.color,
+    tags: $('#pTags').value, color: P.color,
     pinned: P.note ? !!(it && it.pinned) : $('#pPin').checked,
   };
   const url = $('#pUrl').value.trim();

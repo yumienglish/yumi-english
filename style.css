@@ -64,17 +64,12 @@ textarea{resize:vertical}
 .chip.on{background:var(--mint);border-color:var(--mint-d)}
 .chip.pk{border-color:transparent;background:var(--c)}
 
-/* Bảng Ghi chú: tờ note tự do, nằm trên cùng, mở sẵn đầy đủ */
-.notes{padding:14px 16px 0;max-width:1600px;margin:0 auto}
-.notes-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px;align-items:start}
-@media (max-width:1180px){.notes-grid{grid-template-columns:repeat(3,minmax(0,1fr))}}
-@media (max-width:880px){.notes-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
-@media (max-width:600px){.notes-grid{grid-template-columns:minmax(0,1fr)}}
-.notes .card{border-radius:4px 4px 16px 4px;box-shadow:0 6px 16px rgba(120,80,20,.13),0 1px 2px rgba(0,0,0,.06)}
-.notes .card .row{padding:9px 8px 6px 12px}
-.notes .card .row .ttl{font-size:15.5px;font-weight:800}
-.notes .card .body{padding:0 12px 10px}
-.notes .card .desc{font-size:14.5px;line-height:1.55}
+/* Ghi chú: tờ note tự do, đứng đầu lưới chung với pack, mở sẵn đầy đủ */
+.card.note{min-width:0;border-radius:4px 4px 16px 4px;box-shadow:0 6px 16px rgba(120,80,20,.13),0 1px 2px rgba(0,0,0,.06)}
+.card.note .row{padding:9px 8px 6px 12px}
+.card.note .row .ttl{font-size:15.5px;font-weight:800}
+.card.note .body{padding:0 12px 10px}
+.card.note .desc{font-size:14.5px;line-height:1.55}
 
 /* Nút ＋ Thêm: menu chọn Ghi chú / Pack */
 .fab-menu{position:fixed;right:18px;bottom:78px;z-index:21;display:flex;flex-direction:column;gap:6px;background:#fff;border-radius:16px;padding:8px;box-shadow:0 12px 32px rgba(60,30,20,.22)}
